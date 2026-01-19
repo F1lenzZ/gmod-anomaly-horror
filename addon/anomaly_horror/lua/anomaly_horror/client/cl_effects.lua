@@ -1,0 +1,1 @@
+-- Client effects stub (no gameplay logic yet)
