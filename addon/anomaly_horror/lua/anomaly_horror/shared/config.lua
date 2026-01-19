@@ -1,0 +1,1 @@
+-- Shared configuration (no gameplay logic yet)
