@@ -1,0 +1,1 @@
+-- Entity stub (no gameplay logic yet)
