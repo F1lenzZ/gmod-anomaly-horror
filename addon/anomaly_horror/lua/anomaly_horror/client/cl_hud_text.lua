@@ -1,0 +1,1 @@
+-- HUD text stub (no gameplay logic yet)
