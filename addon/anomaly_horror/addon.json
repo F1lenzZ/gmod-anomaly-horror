@@ -1,0 +1,10 @@
+{
+  "title": "Anomaly Horror",
+  "type": "addon",
+  "tags": ["horror", "anomaly", "psychological", "ai"],
+  "ignore": [
+    ".git",
+    ".github",
+    "README.md"
+  ]
+}
