@@ -1,0 +1,1 @@
+-- Anomalies stub (no gameplay logic yet)
