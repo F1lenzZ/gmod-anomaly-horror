@@ -1,0 +1,1 @@
+-- State machine stubs (no gameplay logic yet)
