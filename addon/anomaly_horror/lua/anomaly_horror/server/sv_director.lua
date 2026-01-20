@@ -12,7 +12,7 @@ util.AddNetworkString("anomaly_horror_anomaly_event")
 function director.Start()
     AnomalyHorror.State.SetSessionStart(CurTime())
     director.NextEntityTime = CurTime() + math.Rand(20, 40)
-    director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.AnomalyBaseInterval
+    director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.SkyPaint = director.FindOrCreateSky()
 end
@@ -87,8 +87,10 @@ function director.Tick()
     director.UpdateSky()
 
     if CurTime() >= director.NextAnomalyPulse then
-        AnomalyHorror.Anomalies.RunPulse(getRandomPlayer())
-        director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
+        if AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
+            AnomalyHorror.Anomalies.RunPulse(getRandomPlayer())
+            director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
+        end
     end
 
     if CurTime() >= director.NextBreakageTime then

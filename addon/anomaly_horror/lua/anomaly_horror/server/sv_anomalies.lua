@@ -405,6 +405,10 @@ function anomalies.GetNextInterval()
 end
 
 function anomalies.RunPulse(ply)
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
     if anomalies.SuppressUntil and CurTime() < anomalies.SuppressUntil then
         return
     end
