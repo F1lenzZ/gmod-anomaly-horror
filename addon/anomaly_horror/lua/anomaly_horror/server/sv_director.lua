@@ -5,11 +5,47 @@ local director = AnomalyHorror.Director
 
 util.AddNetworkString("anomaly_horror_state")
 util.AddNetworkString("anomaly_horror_message")
+util.AddNetworkString("anomaly_horror_weapon_scramble")
 
 function director.Start()
     AnomalyHorror.State.SetSessionStart(CurTime())
     director.NextEntityTime = CurTime() + math.Rand(20, 40)
     director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.AnomalyBaseInterval
+    director.SkyPaint = director.FindOrCreateSky()
+end
+
+function director.FindOrCreateSky()
+    local sky = ents.FindByClass("env_skypaint")[1]
+    if IsValid(sky) then
+        return sky
+    end
+
+    local created = ents.Create("env_skypaint")
+    if not IsValid(created) then
+        return nil
+    end
+
+    created:Spawn()
+    created:Activate()
+    return created
+end
+
+function director.UpdateSky()
+    local sky = director.SkyPaint
+    if not IsValid(sky) then
+        return
+    end
+
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
+    local red = 0.05 + intensity * 0.9
+    local green = 0.1 * (1 - intensity)
+    local blue = 0.1 * (1 - intensity)
+
+    sky:SetTopColor(Vector(red, green, blue))
+    sky:SetBottomColor(Vector(red * 0.6, green * 0.4, blue * 0.4))
+    sky:SetSunColor(Vector(red, green, blue))
+    sky:SetSunSize(0.3 + intensity * 0.7)
+    sky:SetDuskScale(0.2 + intensity * 0.8)
 end
 
 function director.BroadcastState()
@@ -37,6 +73,7 @@ end
 
 function director.Tick()
     director.BroadcastState()
+    director.UpdateSky()
 
     if CurTime() >= director.NextAnomalyPulse then
         AnomalyHorror.Anomalies.RunPulse(getRandomPlayer())

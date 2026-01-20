@@ -94,6 +94,43 @@ local function soundWarp(ply)
     ply:EmitSound("ambient/levels/canals/windchime2.wav", 70, math.random(60, 90))
 end
 
+local function weaponScramble(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    net.Start("anomaly_horror_weapon_scramble")
+    net.WriteFloat(AnomalyHorror.Config.WeaponScrambleDuration)
+    net.WriteFloat(AnomalyHorror.Config.WeaponScrambleInterval)
+    net.Send(ply)
+end
+
+local function cameraShake(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    local config = AnomalyHorror.Config
+    util.ScreenShake(ply:GetPos(), config.CameraShakeAmplitude, config.CameraShakeFrequency, config.CameraShakeDuration, 600)
+    ply:ViewPunch(Angle(math.Rand(-4, 4), math.Rand(-6, 6), math.Rand(-2, 2)))
+end
+
+local function screenFlicker(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    ply:ScreenFade(SCREENFADE.IN, Color(0, 0, 0, 230), 0.2, 0.15)
+end
+
+local function propBurst(ply)
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
+    local count = 1 + math.floor(intensity * 3)
+    for _ = 1, count do
+        spawnPropNear(ply)
+    end
+end
+
 local anomalyPool = {
     function(ply)
         if math.random() < 0.5 then
@@ -116,6 +153,26 @@ local anomalyPool = {
     end,
     function(ply)
         soundWarp(ply)
+    end,
+    function(ply)
+        if math.random() < 0.5 then
+            weaponScramble(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.7 then
+            cameraShake(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.6 then
+            screenFlicker(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.4 then
+            propBurst(ply)
+        end
     end
 }
 

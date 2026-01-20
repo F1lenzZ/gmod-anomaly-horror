@@ -89,6 +89,26 @@ local function moveEntity(ent, direction, speed)
     ent:SetPos(pos)
 end
 
+local function pickBehavior()
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
+    local roll = math.Rand(0, 1)
+    local aggression = math.Clamp(intensity + AnomalyHorror.Config.EntityAggressionBoost, 0, 1)
+
+    if roll < 0.25 * (1 - aggression) then
+        return behaviors.RUN_AWAY
+    end
+
+    if roll < 0.55 then
+        return behaviors.STAND_AND_VANISH
+    end
+
+    if roll < 0.85 - (0.2 * (1 - aggression)) then
+        return behaviors.HUNT
+    end
+
+    return behaviors.KILL_ON_SIGHT
+end
+
 function entityController.GetCooldown()
     local config = AnomalyHorror.Config
     local intensity = AnomalyHorror.State.GetIntensityScalar()
@@ -135,9 +155,10 @@ function entityController.TrySpawn(ply)
     ent:Activate()
 
     entityController.Current = ent
-    entityController.Mode = math.random(1, 4)
+    entityController.Mode = pickBehavior()
     entityController.Target = ply
     entityController.SpawnTime = CurTime()
+    entityController.LastRepath = 0
 
     ent:EmitSound(pickSound(), 80, math.random(70, 100))
     AnomalyHorror.SendMessage(pickMessage())
@@ -176,22 +197,33 @@ function entityController.Think()
     jitterEntity(ent)
 
     local direction = (ply:GetPos() - ent:GetPos()):GetNormalized()
+    local distance = ent:GetPos():Distance(ply:GetPos())
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
 
     if entityController.Mode == behaviors.RUN_AWAY then
-        moveEntity(ent, direction * -1, AnomalyHorror.Config.EntityFleeSpeed * 0.1)
+        local fleeSpeed = AnomalyHorror.Config.EntityFleeSpeed * (0.1 + intensity * 0.08)
+        moveEntity(ent, direction * -1, fleeSpeed)
+        if distance > 1400 then
+            entityController.Vanish()
+        end
     elseif entityController.Mode == behaviors.HUNT then
-        moveEntity(ent, direction, AnomalyHorror.Config.EntityChaseSpeed * 0.1)
-        if ent:GetPos():Distance(ply:GetPos()) <= AnomalyHorror.Config.EntityKillRange then
+        local chaseSpeed = AnomalyHorror.Config.EntityChaseSpeed * (0.1 + intensity * 0.1)
+        if CurTime() - entityController.LastRepath >= AnomalyHorror.Config.EntityChaseRepath then
+            entityController.LastRepath = CurTime()
+        end
+
+        moveEntity(ent, direction, chaseSpeed)
+        if distance <= AnomalyHorror.Config.EntityKillRange then
             ply:TakeDamage(9999, ent, ent)
             entityController.Vanish()
         end
     elseif entityController.Mode == behaviors.KILL_ON_SIGHT then
-        if shouldKillOnSight(ply, ent) then
+        if shouldKillOnSight(ply, ent) and distance <= 900 then
             ply:TakeDamage(9999, ent, ent)
             entityController.Vanish()
         end
     elseif entityController.Mode == behaviors.STAND_AND_VANISH then
-        if ent:GetPos():Distance(ply:GetPos()) <= AnomalyHorror.Config.EntityVanishRange then
+        if distance <= AnomalyHorror.Config.EntityVanishRange then
             entityController.Vanish()
         end
     end

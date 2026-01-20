@@ -6,12 +6,50 @@ clientState.Intensity = 0
 clientState.Phase = 1
 clientState.LastGlitch = 0
 clientState.HudOffset = Vector(0, 0, 0)
+clientState.WeaponScrambleEnd = 0
 
 net.Receive("anomaly_horror_state", function()
     local elapsed = net.ReadFloat()
     clientState.Intensity = net.ReadFloat()
     clientState.Phase = net.ReadUInt(2)
     AnomalyHorror.State.SetSessionStart(RealTime() - elapsed)
+end)
+
+local function startWeaponScramble(duration, interval)
+    if duration <= 0 or interval <= 0 then
+        return
+    end
+
+    clientState.WeaponScrambleEnd = CurTime() + duration
+
+    timer.Remove("AnomalyHorrorWeaponScramble")
+    timer.Create("AnomalyHorrorWeaponScramble", interval, 0, function()
+        if CurTime() > clientState.WeaponScrambleEnd then
+            timer.Remove("AnomalyHorrorWeaponScramble")
+            return
+        end
+
+        local ply = LocalPlayer()
+        if not IsValid(ply) then
+            return
+        end
+
+        local weapons = ply:GetWeapons()
+        if #weapons == 0 then
+            return
+        end
+
+        local weapon = weapons[math.random(#weapons)]
+        if IsValid(weapon) then
+            input.SelectWeapon(weapon)
+        end
+    end)
+end
+
+net.Receive("anomaly_horror_weapon_scramble", function()
+    local duration = net.ReadFloat()
+    local interval = net.ReadFloat()
+    startWeaponScramble(duration, interval)
 end)
 
 local function randomGlitchOffset(intensity)

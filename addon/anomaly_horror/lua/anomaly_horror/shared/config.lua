@@ -9,14 +9,17 @@ AnomalyHorror.Config = {
     UpdateInterval = 2,
     AnomalyBaseInterval = 25,
     AnomalyMinInterval = 6,
-    EntityCooldownMin = 80,
-    EntityCooldownMax = 160,
-    EntityLifetime = 20,
+    EntityCooldownMin = 45,
+    EntityCooldownMax = 110,
+    EntityLifetime = 28,
     EntitySpawnDistance = { min = 450, max = 900 },
     EntityChaseSpeed = 260,
     EntityFleeSpeed = 340,
     EntityKillRange = 140,
     EntityVanishRange = 200,
+    EntityStareDuration = 4,
+    EntityChaseRepath = 0.4,
+    EntityAggressionBoost = 0.2,
     EntityModels = {
         "models/Humans/Group01/Male_07.mdl",
         "models/Humans/Group01/Male_04.mdl",
@@ -40,7 +43,12 @@ AnomalyHorror.Config = {
         "THE LIGHTS ARE LYING.",
         "I AM LEARNING YOUR ROUTES.",
         "THIS IS NOT A SCRIPTED EVENT.",
-        "DO NOT TURN AROUND."
+        "DO NOT TURN AROUND.",
+        "YOU ARE WALKING ON BROKEN CODE.",
+        "YOUR MENU WILL NOT SAVE YOU.",
+        "I AM NOW IN CONTROL OF THE TICKS.",
+        "EVERY STEP IS LOGGED.",
+        "THE SKY DOES NOT BELONG TO YOU."
     },
     ConsoleSpam = {
         "[ERROR] material missing: anomaly/void",
@@ -50,6 +58,11 @@ AnomalyHorror.Config = {
         "[ERROR] audio device reported null buffer",
         "[WARNING] memory leak suspected: render queue"
     },
+    WeaponScrambleDuration = 4,
+    WeaponScrambleInterval = 0.12,
+    CameraShakeDuration = 2.5,
+    CameraShakeAmplitude = 6,
+    CameraShakeFrequency = 18,
     PropModels = {
         "models/props_c17/oildrum001.mdl",
         "models/props_junk/wood_crate001a.mdl",
