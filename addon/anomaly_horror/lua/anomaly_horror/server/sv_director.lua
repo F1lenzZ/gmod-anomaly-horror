@@ -12,7 +12,7 @@ function director.Start()
     AnomalyHorror.State.SetSessionStart(CurTime())
     director.NextEntityTime = CurTime() + math.Rand(20, 40)
     director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.AnomalyBaseInterval
-    director.NextBreakageTime = CurTime() + math.Rand(18, 35)
+    director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.SkyPaint = director.FindOrCreateSky()
 end
 
@@ -91,8 +91,10 @@ function director.Tick()
     end
 
     if CurTime() >= director.NextBreakageTime then
-        AnomalyHorror.Breakage.RunPulse(getRandomPlayer())
-        director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
+        if AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
+            AnomalyHorror.Breakage.RunPulse(getRandomPlayer())
+            director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
+        end
     end
 
     if CurTime() >= director.NextEntityTime then

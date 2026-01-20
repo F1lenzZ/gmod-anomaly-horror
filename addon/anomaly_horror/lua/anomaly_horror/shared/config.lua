@@ -10,6 +10,7 @@ AnomalyHorror.Config = {
     AnomalyBaseInterval = 25,
     AnomalyMinInterval = 6,
     GracePeriodSeconds = 90,
+    QuietStartSeconds = 240,
     EntityCooldownMin = 45,
     EntityCooldownMax = 110,
     EntityLifetime = 28,

@@ -188,7 +188,9 @@ function entityController.TrySpawn(ply)
     entityController.LastRepath = 0
 
     ent:EmitSound(pickSound(), 80, math.random(70, 100))
-    if AnomalyHorror.State.GetPhase() >= 2 and not AnomalyHorror.State.InGracePeriod() then
+    if AnomalyHorror.State.GetPhase() >= 2
+        and not AnomalyHorror.State.InGracePeriod()
+        and AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
         AnomalyHorror.SendMessage(pickMessage())
     end
 

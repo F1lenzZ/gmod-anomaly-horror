@@ -33,6 +33,10 @@ local function canSendMessage(phase)
         return false
     end
 
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return false
+    end
+
     if AnomalyHorror.State.InGracePeriod() then
         return false
     end
@@ -161,6 +165,10 @@ function breakage.RunPulse(ply)
         return
     end
 
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
     local phase = AnomalyHorror.State.GetPhase()
     local intensity = AnomalyHorror.State.GetIntensityScalar()
     local phaseConfig = getPhaseConfig(phase)
@@ -213,9 +221,4 @@ function breakage.RunPulse(ply)
         sendBreakageEvent(ply, "ControlNudge", math.Rand(0.3, 0.5), intensity)
     end
 
-    if phase == 1 and math.random() < 0.1 then
-        if not AnomalyHorror.State.InGracePeriod() then
-            AnomalyHorror.SendMessage(pickFromPool(AnomalyHorror.Config.BreakageCommentary.technical))
-        end
-    end
 end
