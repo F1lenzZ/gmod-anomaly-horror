@@ -7,6 +7,7 @@ util.AddNetworkString("anomaly_horror_state")
 util.AddNetworkString("anomaly_horror_message")
 util.AddNetworkString("anomaly_horror_weapon_scramble")
 util.AddNetworkString("anomaly_horror_breakage_event")
+util.AddNetworkString("anomaly_horror_anomaly_event")
 
 function director.Start()
     AnomalyHorror.State.SetSessionStart(CurTime())

@@ -10,6 +10,12 @@ clientState.WeaponScrambleEnd = 0
 clientState.BreakageFreezeEnd = 0
 clientState.BreakageFreezeSeverity = 0
 clientState.HudDoubleEnd = 0
+clientState.HudMicroOffsetEnd = 0
+clientState.HudMicroOffset = Vector(0, 0, 0)
+clientState.CameraBreathEnd = 0
+clientState.WorldResetEnd = 0
+clientState.ShadowOffsetEnd = 0
+clientState.ShadowOffset = Vector(0, 0, 0)
 
 net.Receive("anomaly_horror_state", function()
     local elapsed = net.ReadFloat()
@@ -67,6 +73,57 @@ end
 
 local function startHudDouble(duration)
     clientState.HudDoubleEnd = CurTime() + duration
+end
+
+local function startHudMicroOffset()
+    clientState.HudMicroOffset = Vector(math.random(-2, 2), math.random(-2, 2), 0)
+    clientState.HudMicroOffsetEnd = CurTime() + 0.08
+end
+
+local function startCameraBreath(duration)
+    clientState.CameraBreathEnd = CurTime() + duration
+    local ply = LocalPlayer()
+    if IsValid(ply) then
+        ply:ViewPunch(Angle(math.Rand(-0.4, 0.4), math.Rand(-0.6, 0.6), 0))
+    end
+end
+
+local function startWorldReset(duration)
+    local ply = LocalPlayer()
+    if IsValid(ply) then
+        ply:ScreenFade(SCREENFADE.OUT, Color(0, 0, 0, 255), 0.1, duration)
+        ply:EmitSound("ambient/machines/teleport1.wav", 70, 80)
+    end
+    clientState.WorldResetEnd = CurTime() + duration
+end
+
+local function spawnPhantomObject()
+    local ply = LocalPlayer()
+    if not IsValid(ply) then
+        return
+    end
+
+    local origin = ply:GetPos() + ply:GetForward() * math.random(180, 260) + VectorRand() * 40
+    local phantom = ClientsideModel("models/props_junk/wood_crate001a.mdl")
+    if not IsValid(phantom) then
+        return
+    end
+
+    phantom:SetPos(origin)
+    phantom:SetAngles(Angle(0, math.random(0, 360), 0))
+    phantom:SetColor(Color(80, 80, 80, 200))
+    phantom:SetRenderMode(RENDERMODE_TRANSALPHA)
+
+    timer.Simple(0.1, function()
+        if IsValid(phantom) then
+            phantom:Remove()
+        end
+    end)
+end
+
+local function startShadowOffset(duration)
+    clientState.ShadowOffsetEnd = CurTime() + duration
+    clientState.ShadowOffset = Vector(math.random(-20, 20), math.random(-20, 20), 0)
 end
 
 local function delayedSound(path, delay, pitch)
@@ -141,6 +198,46 @@ local breakageHandlers = {
     end,
     ControlNudge = function(duration)
         startControlNudge(duration)
+    end,
+    DelayedReaction = function(duration)
+        timer.Simple(duration, function()
+            local ply = LocalPlayer()
+            if IsValid(ply) then
+                ply:ScreenFade(SCREENFADE.IN, Color(0, 0, 0, 180), 0.1, 0.05)
+            end
+        end)
+    end,
+    LogicFlip = function()
+        local ply = LocalPlayer()
+        if not IsValid(ply) then
+            return
+        end
+
+        if ply:GetVelocity():Length2D() > 120 then
+            startBreakageFreeze(0.25, 0.3)
+        else
+            startBlackoutPulse(0.6)
+        end
+    end,
+    PhantomObjectFlash = function()
+        spawnPhantomObject()
+    end,
+    ShadowOffset = function(duration)
+        startShadowOffset(duration)
+    end,
+    ImpossibleSoundDirection = function(duration)
+        local ply = LocalPlayer()
+        if not IsValid(ply) then
+            return
+        end
+
+        local direction = Vector(math.random(-1, 1), math.random(-1, 1), math.random(-1, 1)):GetNormalized()
+        local pos = ply:GetPos() + direction * math.random(120, 240)
+        sound.Play("ambient/creatures/town_scared_breathing1.wav", pos, 55, math.random(80, 95), 0.2)
+        delayedSound("player/footsteps/concrete2.wav", duration, 90)
+    end,
+    OneTimeWorldReset = function(duration)
+        startWorldReset(duration)
     end
 }
 
@@ -149,6 +246,25 @@ net.Receive("anomaly_horror_breakage_event", function()
     local duration = net.ReadFloat()
     local severity = net.ReadFloat()
     local handler = breakageHandlers[eventName]
+    if handler then
+        handler(duration, severity)
+    end
+end)
+
+local anomalyHandlers = {
+    HUDMicroOffset = function()
+        startHudMicroOffset()
+    end,
+    CameraBreathTiny = function(duration)
+        startCameraBreath(duration)
+    end
+}
+
+net.Receive("anomaly_horror_anomaly_event", function()
+    local eventName = net.ReadString()
+    local duration = net.ReadFloat()
+    local severity = net.ReadFloat()
+    local handler = anomalyHandlers[eventName]
     if handler then
         handler(duration, severity)
     end
@@ -191,9 +307,18 @@ hook.Add("HUDPaint", "AnomalyHorrorHudShift", function()
         surface.SetDrawColor(0, 0, 0, 0)
         surface.DrawRect(clientState.HudOffset.x, clientState.HudOffset.y, 1, 1)
     end
+
+    if CurTime() < clientState.HudMicroOffsetEnd then
+        surface.SetDrawColor(0, 0, 0, 12)
+        surface.DrawRect(clientState.HudMicroOffset.x, clientState.HudMicroOffset.y, ScrW(), ScrH())
+    end
 end)
 
 hook.Add("RenderScreenspaceEffects", "AnomalyHorrorScreenEffects", function()
+    if CurTime() < clientState.WorldResetEnd then
+        return
+    end
+
     local intensity = clientState.Intensity
     if intensity <= 0 and CurTime() >= clientState.BreakageFreezeEnd then
         return
@@ -254,4 +379,39 @@ hook.Add("RenderScreenspaceEffects", "AnomalyHorrorScreenEffects", function()
         DrawMotionBlur(0.1, 0.9, 0.05 + clientState.BreakageFreezeSeverity * 0.05)
         DrawSharpen(1, 1 + clientState.BreakageFreezeSeverity)
     end
+
+    if CurTime() < clientState.CameraBreathEnd then
+        DrawMotionBlur(0.03, 0.2, 0.01)
+    end
+end)
+
+hook.Add("PostDrawTranslucentRenderables", "AnomalyHorrorShadowOffset", function()
+    if CurTime() >= clientState.ShadowOffsetEnd then
+        return
+    end
+
+    local ply = LocalPlayer()
+    if not IsValid(ply) then
+        return
+    end
+
+    local trace = util.TraceLine({
+        start = ply:GetPos() + Vector(0, 0, 40),
+        endpos = ply:GetPos() - Vector(0, 0, 120),
+        mask = MASK_SOLID_BRUSHONLY
+    })
+
+    if not trace.Hit then
+        return
+    end
+
+    render.SetColorMaterial()
+    render.DrawQuadEasy(
+        trace.HitPos + clientState.ShadowOffset,
+        trace.HitNormal,
+        40,
+        40,
+        Color(0, 0, 0, 120),
+        ply:EyeAngles().y
+    )
 end)

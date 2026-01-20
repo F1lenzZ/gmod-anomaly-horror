@@ -89,7 +89,14 @@ AnomalyHorror.Config = {
                 "ControlNudge",
                 "FakeLuaError",
                 "ShortFreeze",
-                "AudioActionDesync"
+                "AudioActionDesync",
+                "DelayedReaction",
+                "LogicFlip",
+                "PhantomObjectFlash",
+                "ShadowOffset",
+                "ImpossibleSoundDirection",
+                "FalseCalmSpike",
+                "OneTimeWorldReset"
             },
             frequencyMultiplier = 0.6,
             silenceChance = 0.7

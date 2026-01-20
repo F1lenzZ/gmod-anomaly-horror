@@ -169,6 +169,10 @@ function breakage.RunPulse(ply)
         return
     end
 
+    if breakage.SuppressUntil and CurTime() < breakage.SuppressUntil then
+        return
+    end
+
     local phase = AnomalyHorror.State.GetPhase()
     local intensity = AnomalyHorror.State.GetIntensityScalar()
     local phaseConfig = getPhaseConfig(phase)
@@ -219,6 +223,31 @@ function breakage.RunPulse(ply)
         sendBreakageEvent(ply, "CausalInversion", math.Rand(1.0, 2.5), intensity)
     elseif eventName == "ControlNudge" then
         sendBreakageEvent(ply, "ControlNudge", math.Rand(0.3, 0.5), intensity)
+    elseif eventName == "DelayedReaction" then
+        sendBreakageEvent(ply, "DelayedReaction", math.Rand(3, 6), intensity)
+    elseif eventName == "LogicFlip" then
+        sendBreakageEvent(ply, "LogicFlip", math.Rand(0.4, 0.8), intensity)
+    elseif eventName == "PhantomObjectFlash" then
+        sendBreakageEvent(ply, "PhantomObjectFlash", 0.12, intensity)
+    elseif eventName == "ShadowOffset" then
+        sendBreakageEvent(ply, "ShadowOffset", math.Rand(0.6, 1.2), intensity)
+    elseif eventName == "ImpossibleSoundDirection" then
+        sendBreakageEvent(ply, "ImpossibleSoundDirection", math.Rand(0.4, 0.9), intensity)
+    elseif eventName == "FalseCalmSpike" then
+        local calmDuration = math.Rand(20, 40)
+        breakage.SuppressUntil = CurTime() + calmDuration
+        AnomalyHorror.Anomalies.SuppressUntil = breakage.SuppressUntil
+        timer.Simple(calmDuration, function()
+            if IsValid(ply) then
+                sendBreakageEvent(ply, "BlackoutPulse", 0.8, intensity)
+            end
+        end)
+    elseif eventName == "OneTimeWorldReset" then
+        if breakage.WorldResetUsed then
+            return
+        end
+        breakage.WorldResetUsed = true
+        sendBreakageEvent(ply, "OneTimeWorldReset", math.Rand(2, 3), intensity)
     end
 
 end
