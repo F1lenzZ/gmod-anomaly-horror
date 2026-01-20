@@ -64,20 +64,12 @@ AnomalyHorror.Config = {
     BreakageCooldownMax = 55,
     BreakageByPhase = {
         [1] = {
-            events = { "MicroFreeze", "SubtleSoundDesync", "MinorHudDoubleDraw" },
+            events = {},
             frequencyMultiplier = 1,
             silenceChance = 0.9
         },
         [2] = {
-            events = {
-                "MicroFreeze",
-                "ShortFreeze",
-                "FakeLuaError",
-                "AudioActionDesync",
-                "NpcStall",
-                "PropHover",
-                "MinorHudDoubleDraw"
-            },
+            events = {},
             frequencyMultiplier = 0.75,
             silenceChance = 0.4
         },

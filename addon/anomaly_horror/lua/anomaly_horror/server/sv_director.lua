@@ -15,6 +15,7 @@ function director.Start()
     director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.SkyPaint = director.FindOrCreateSky()
+    director.LastPhase = AnomalyHorror.State.GetPhase()
 end
 
 function director.FindOrCreateSky()
@@ -55,8 +56,13 @@ function director.UpdateSky()
     sky:SetTopColor(Vector(red, green, blue))
     sky:SetBottomColor(Vector(red * 0.6, green * 0.4, blue * 0.4))
     sky:SetSunColor(Vector(red, green, blue))
-    sky:SetSunSize(0.3 + intensity * 0.7)
-    sky:SetDuskScale(0.2 + intensity * 0.8)
+    if phase >= 3 then
+        sky:SetSunSize(0.3 + intensity * 0.7)
+        sky:SetDuskScale(0.2 + intensity * 0.8)
+    else
+        sky:SetSunSize(0.3)
+        sky:SetDuskScale(0.2)
+    end
 end
 
 function director.BroadcastState()
@@ -83,11 +89,26 @@ local function getRandomPlayer()
 end
 
 function director.Tick()
+    local elapsed = AnomalyHorror.State.GetSessionSeconds()
+    local phase = AnomalyHorror.State.GetPhase()
+
     director.BroadcastState()
-    director.UpdateSky()
+    if elapsed >= AnomalyHorror.Config.QuietStartSeconds then
+        director.UpdateSky()
+    end
+
+    if phase ~= director.LastPhase then
+        if phase == 2 then
+            director.NextEntityTime = CurTime() + math.Rand(25, 55)
+        elseif phase == 3 then
+            director.NextAnomalyPulse = CurTime() + math.Rand(0.8, 2.0)
+            director.NextBreakageTime = CurTime() + math.Rand(1.0, 3.0)
+        end
+        director.LastPhase = phase
+    end
 
     if CurTime() >= director.NextAnomalyPulse then
-        if AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
+        if elapsed >= AnomalyHorror.Config.QuietStartSeconds then
             AnomalyHorror.Anomalies.RunPulse(getRandomPlayer())
             director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
         end
@@ -101,7 +122,7 @@ function director.Tick()
     end
 
     if CurTime() >= director.NextEntityTime then
-        if AnomalyHorror.State.GetPhase() >= 2 then
+        if phase >= 2 then
             AnomalyHorror.Entity.TrySpawn(getRandomPlayer())
         end
         director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()

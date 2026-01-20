@@ -21,7 +21,7 @@ net.Receive("anomaly_horror_state", function()
     local elapsed = net.ReadFloat()
     clientState.Intensity = net.ReadFloat()
     clientState.Phase = net.ReadUInt(2)
-    AnomalyHorror.State.SetSessionStart(RealTime() - elapsed)
+    AnomalyHorror.State.SetSessionStart(CurTime() - elapsed)
 end)
 
 local function startWeaponScramble(duration, interval)
@@ -280,6 +280,14 @@ local function randomGlitchOffset(intensity)
 end
 
 hook.Add("HUDShouldDraw", "AnomalyHorrorHudGlitch", function()
+    if not AnomalyHorror.State or not AnomalyHorror.Config then
+        return
+    end
+
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
     local intensity = clientState.Intensity
     if intensity <= 0 then
         return
@@ -291,6 +299,14 @@ hook.Add("HUDShouldDraw", "AnomalyHorrorHudGlitch", function()
 end)
 
 hook.Add("Think", "AnomalyHorrorGlitchThink", function()
+    if not AnomalyHorror.State or not AnomalyHorror.Config then
+        return
+    end
+
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
     local intensity = clientState.Intensity
     if CurTime() - clientState.LastGlitch > math.max(0.4, 2 - intensity) then
         clientState.HudOffset = randomGlitchOffset(intensity)
@@ -299,6 +315,14 @@ hook.Add("Think", "AnomalyHorrorGlitchThink", function()
 end)
 
 hook.Add("HUDPaint", "AnomalyHorrorHudShift", function()
+    if not AnomalyHorror.State or not AnomalyHorror.Config then
+        return
+    end
+
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
     if clientState.Intensity <= 0 then
         return
     end
@@ -315,6 +339,14 @@ hook.Add("HUDPaint", "AnomalyHorrorHudShift", function()
 end)
 
 hook.Add("RenderScreenspaceEffects", "AnomalyHorrorScreenEffects", function()
+    if not AnomalyHorror.State or not AnomalyHorror.Config then
+        return
+    end
+
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
     if CurTime() < clientState.WorldResetEnd then
         return
     end

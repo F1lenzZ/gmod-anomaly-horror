@@ -2,6 +2,8 @@ AnomalyHorror = AnomalyHorror or {}
 AnomalyHorror.Anomalies = AnomalyHorror.Anomalies or {}
 
 local anomalies = AnomalyHorror.Anomalies
+anomalies.SpawnedCount = anomalies.SpawnedCount or 0
+anomalies.SpawnedLimit = 12
 
 local function safeFindPlayerPosition(ply)
     if not IsValid(ply) then
@@ -24,6 +26,10 @@ local function sendAnomalyEvent(ply, eventName, duration, severity)
 end
 
 local function spawnPropNear(ply)
+    if anomalies.SpawnedCount >= anomalies.SpawnedLimit then
+        return
+    end
+
     local config = AnomalyHorror.Config
     local center = safeFindPlayerPosition(ply)
     local offset = VectorRand() * math.random(200, 600)
@@ -44,9 +50,14 @@ local function spawnPropNear(ply)
     prop:Spawn()
     prop:Activate()
     prop:SetCollisionGroup(COLLISION_GROUP_INTERACTIVE)
+    anomalies.SpawnedCount = anomalies.SpawnedCount + 1
 end
 
 local function spawnNpcNear(ply)
+    if anomalies.SpawnedCount >= anomalies.SpawnedLimit then
+        return
+    end
+
     local config = AnomalyHorror.Config
     local npcClass = config.NpcClasses[math.random(#config.NpcClasses)]
     local center = safeFindPlayerPosition(ply)
@@ -66,6 +77,7 @@ local function spawnNpcNear(ply)
     npc:SetPos(trace.HitPos + Vector(0, 0, 10))
     npc:Spawn()
     npc:SetSchedule(SCHED_IDLE_WANDER)
+    anomalies.SpawnedCount = anomalies.SpawnedCount + 1
 end
 
 local function flickerLights()
@@ -81,12 +93,27 @@ end
 local function physicsPulse(ply)
     local center = safeFindPlayerPosition(ply)
     local entities = ents.FindInSphere(center, 900)
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
+    local maxTargets = 12
+    local count = 0
 
     for _, ent in ipairs(entities) do
         if IsValid(ent) then
+            if ent:GetClass() ~= "prop_physics" and ent:GetClass() ~= "prop_physics_multiplayer" then
+                continue
+            end
+
+            if ent:GetPos():Distance(center) < 180 then
+                continue
+            end
+
             local phys = ent:GetPhysicsObject()
             if IsValid(phys) then
-                phys:ApplyForceCenter(VectorRand() * math.random(30000, 80000))
+                phys:ApplyForceCenter(VectorRand() * math.random(12000, math.floor(35000 + intensity * 5000)))
+                count = count + 1
+                if count >= maxTargets then
+                    break
+                end
             end
         end
     end
@@ -298,34 +325,138 @@ end
 
 local function propBurst(ply)
     local intensity = AnomalyHorror.State.GetIntensityScalar()
-    local count = 1 + math.floor(intensity * 3)
+    local count = math.min(3, 1 + math.floor(intensity * 2))
     for _ = 1, count do
         spawnPropNear(ply)
     end
 end
 
-local anomalyPool = {
+local anomalyPoolP1 = {
     function(ply)
-        if math.random() < 0.5 then
+        if math.random() < 0.05 then
+            distantSingleStep(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.04 then
+            subtlePropRotation(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.05 then
+            npcMicroGlance(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.06 then
+            hudMicroOffset(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.02 then
+            soundWarp(ply)
+        end
+    end
+}
+
+local anomalyPoolP2 = {
+    function(ply)
+        if math.random() < 0.12 then
             spawnPropNear(ply)
         end
     end,
     function(ply)
-        if math.random() < 0.35 then
+        if math.random() < 0.04 then
             spawnNpcNear(ply)
         end
     end,
     function()
-        flickerLights()
+        if math.random() < 0.2 then
+            flickerLights()
+        end
     end,
     function(ply)
-        physicsPulse(ply)
+        if math.random() < 0.25 then
+            soundWarp(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.08 then
+            npcSoftFreeze(ply)
+        end
     end,
     function()
-        consoleSpam()
+        if math.random() < 0.06 then
+            lightLieSmall()
+        end
     end,
     function(ply)
-        soundWarp(ply)
+        if math.random() < 0.07 then
+            soundSpaceMismatch(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.07 then
+            propHesitation(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.04 then
+            cameraBreathTiny(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.3 then
+            weaponScramble(ply)
+        end
+    end
+}
+
+local anomalyPoolP3 = {
+    function(ply)
+        if math.random() < 0.12 then
+            spawnPropNear(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.06 then
+            spawnNpcNear(ply)
+        end
+    end,
+    function()
+        if math.random() < 0.25 then
+            flickerLights()
+        end
+    end,
+    function(ply)
+        if math.random() < 0.3 then
+            soundWarp(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.1 then
+            npcSoftFreeze(ply)
+        end
+    end,
+    function()
+        if math.random() < 0.08 then
+            lightLieSmall()
+        end
+    end,
+    function(ply)
+        if math.random() < 0.1 then
+            soundSpaceMismatch(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.1 then
+            propHesitation(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.05 then
+            cameraBreathTiny(ply)
+        end
     end,
     function(ply)
         if math.random() < 0.5 then
@@ -333,63 +464,28 @@ local anomalyPool = {
         end
     end,
     function(ply)
-        if math.random() < 0.7 then
+        if math.random() < 0.3 then
+            physicsPulse(ply)
+        end
+    end,
+    function(ply)
+        if math.random() < 0.5 then
             cameraShake(ply)
         end
     end,
     function(ply)
-        if math.random() < 0.6 then
+        if math.random() < 0.4 then
             screenFlicker(ply)
         end
     end,
     function(ply)
-        if math.random() < 0.4 then
+        if math.random() < 0.35 then
             propBurst(ply)
         end
     end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 1 and math.random() < 0.05 then
-            distantSingleStep(ply)
-        end
-    end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 1 and math.random() < 0.04 then
-            subtlePropRotation(ply)
-        end
-    end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 1 and math.random() < 0.05 then
-            npcMicroGlance(ply)
-        end
-    end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 1 and math.random() < 0.06 then
-            hudMicroOffset(ply)
-        end
-    end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 2 and math.random() < 0.08 then
-            npcSoftFreeze(ply)
-        end
-    end,
     function()
-        if AnomalyHorror.State.GetPhase() == 2 and math.random() < 0.06 then
-            lightLieSmall()
-        end
-    end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 2 and math.random() < 0.07 then
-            soundSpaceMismatch(ply)
-        end
-    end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 2 and math.random() < 0.07 then
-            propHesitation(ply)
-        end
-    end,
-    function(ply)
-        if AnomalyHorror.State.GetPhase() == 2 and math.random() < 0.04 then
-            cameraBreathTiny(ply)
+        if math.random() < 0.2 then
+            consoleSpam()
         end
     end
 }
@@ -413,11 +509,22 @@ function anomalies.RunPulse(ply)
         return
     end
 
+    local phase = AnomalyHorror.State.GetPhase()
     local intensity = AnomalyHorror.State.GetIntensityScalar()
     local runs = 1 + math.floor(intensity * 3)
+    if phase == 1 then
+        runs = 1
+    end
+
+    local pool = anomalyPoolP2
+    if phase == 1 then
+        pool = anomalyPoolP1
+    elseif phase >= 3 then
+        pool = anomalyPoolP3
+    end
 
     for _ = 1, runs do
-        local anomaly = anomalyPool[math.random(#anomalyPool)]
+        local anomaly = pool[math.random(#pool)]
         anomaly(ply)
     end
 end

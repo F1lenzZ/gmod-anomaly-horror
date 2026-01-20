@@ -169,6 +169,10 @@ function breakage.RunPulse(ply)
         return
     end
 
+    if AnomalyHorror.State.GetPhase() < 3 then
+        return
+    end
+
     if breakage.SuppressUntil and CurTime() < breakage.SuppressUntil then
         return
     end
