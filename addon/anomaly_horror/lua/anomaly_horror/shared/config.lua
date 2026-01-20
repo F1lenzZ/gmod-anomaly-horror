@@ -9,6 +9,7 @@ AnomalyHorror.Config = {
     UpdateInterval = 2,
     AnomalyBaseInterval = 25,
     AnomalyMinInterval = 6,
+    GracePeriodSeconds = 90,
     EntityCooldownMin = 45,
     EntityCooldownMax = 110,
     EntityLifetime = 28,
@@ -57,6 +58,81 @@ AnomalyHorror.Config = {
         "[WARNING] navmesh desync detected",
         "[ERROR] audio device reported null buffer",
         "[WARNING] memory leak suspected: render queue"
+    },
+    BreakageCooldownMin = 18,
+    BreakageCooldownMax = 55,
+    BreakageByPhase = {
+        [1] = {
+            events = { "MicroFreeze", "SubtleSoundDesync", "MinorHudDoubleDraw" },
+            frequencyMultiplier = 1,
+            silenceChance = 0.9
+        },
+        [2] = {
+            events = {
+                "MicroFreeze",
+                "ShortFreeze",
+                "FakeLuaError",
+                "AudioActionDesync",
+                "NpcStall",
+                "PropHover",
+                "MinorHudDoubleDraw"
+            },
+            frequencyMultiplier = 0.75,
+            silenceChance = 0.4
+        },
+        [3] = {
+            events = {
+                "FakeCrash",
+                "BlackoutPulse",
+                "CausalInversion",
+                "ControlNudge",
+                "FakeLuaError",
+                "ShortFreeze",
+                "AudioActionDesync"
+            },
+            frequencyMultiplier = 0.6,
+            silenceChance = 0.7
+        }
+    },
+    MicroFreezeDurations = {
+        p1_min = 0.08,
+        p1_max = 0.15,
+        p2_min = 0.2,
+        p2_max = 0.35,
+        p3_min = 0.25,
+        p3_max = 0.6
+    },
+    FakeCrashDurations = {
+        p3_min = 0.8,
+        p3_max = 1.4
+    },
+    FakeLuaErrors = {
+        "lua/engine/think: tick mismatch detected",
+        "lua/engine/network: unreliable channel overflow",
+        "lua/engine/render: frame variance exceeded",
+        "lua/engine/physics: resim jitter detected",
+        "lua/engine/predict: command out of bounds"
+    },
+    BreakageCommentary = {
+        technical = {
+            "minor desync detected",
+            "frame variance",
+            "tick mismatch",
+            "client resync complete",
+            "tick skipped (x3)",
+            "rollback handled"
+        },
+        aware = {
+            "you thought it crashed",
+            "did you see that?",
+            "i fixed the stack"
+        },
+        harsh = {
+            "THIS SHOULD NOT BE POSSIBLE",
+            "REALITY CHECK: INVALID",
+            "ROLLBACK FAILED",
+            "NEXT TIME I WON'T STOP IT."
+        }
     },
     WeaponScrambleDuration = 4,
     WeaponScrambleInterval = 0.12,

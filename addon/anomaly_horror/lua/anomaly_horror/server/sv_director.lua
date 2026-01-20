@@ -6,11 +6,13 @@ local director = AnomalyHorror.Director
 util.AddNetworkString("anomaly_horror_state")
 util.AddNetworkString("anomaly_horror_message")
 util.AddNetworkString("anomaly_horror_weapon_scramble")
+util.AddNetworkString("anomaly_horror_breakage_event")
 
 function director.Start()
     AnomalyHorror.State.SetSessionStart(CurTime())
     director.NextEntityTime = CurTime() + math.Rand(20, 40)
     director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.AnomalyBaseInterval
+    director.NextBreakageTime = CurTime() + math.Rand(18, 35)
     director.SkyPaint = director.FindOrCreateSky()
 end
 
@@ -37,9 +39,17 @@ function director.UpdateSky()
     end
 
     local intensity = AnomalyHorror.State.GetIntensityScalar()
-    local red = 0.05 + intensity * 0.9
-    local green = 0.1 * (1 - intensity)
-    local blue = 0.1 * (1 - intensity)
+    local phase = AnomalyHorror.State.GetPhase()
+    local red = 0.2
+    local green = 0.3
+    local blue = 0.45
+
+    if phase >= 3 then
+        local scaled = math.Clamp((intensity - 0.7) / 0.3, 0, 1)
+        red = 0.18 + scaled * 0.35
+        green = 0.18 - scaled * 0.12
+        blue = 0.22 - scaled * 0.15
+    end
 
     sky:SetTopColor(Vector(red, green, blue))
     sky:SetBottomColor(Vector(red * 0.6, green * 0.4, blue * 0.4))
@@ -80,8 +90,15 @@ function director.Tick()
         director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
     end
 
+    if CurTime() >= director.NextBreakageTime then
+        AnomalyHorror.Breakage.RunPulse(getRandomPlayer())
+        director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
+    end
+
     if CurTime() >= director.NextEntityTime then
-        AnomalyHorror.Entity.TrySpawn(getRandomPlayer())
+        if AnomalyHorror.State.GetPhase() >= 2 then
+            AnomalyHorror.Entity.TrySpawn(getRandomPlayer())
+        end
         director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
     end
 end

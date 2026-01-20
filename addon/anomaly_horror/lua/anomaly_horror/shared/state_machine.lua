@@ -33,3 +33,8 @@ function AnomalyHorror.State.GetIntensityScalar()
 
     return scalar
 end
+
+function AnomalyHorror.State.InGracePeriod()
+    local config = AnomalyHorror.Config
+    return AnomalyHorror.State.GetSessionSeconds() < config.GracePeriodSeconds
+end

@@ -22,6 +22,7 @@ includeShared("anomaly_horror/shared/state_machine.lua")
 if SERVER then
     include("anomaly_horror/server/sv_director.lua")
     include("anomaly_horror/server/sv_anomalies.lua")
+    include("anomaly_horror/server/sv_breakage.lua")
     include("anomaly_horror/server/sv_entity.lua")
 else
     includeClient("anomaly_horror/client/cl_effects.lua")

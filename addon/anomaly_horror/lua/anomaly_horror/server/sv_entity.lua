@@ -92,21 +92,44 @@ end
 local function pickBehavior()
     local intensity = AnomalyHorror.State.GetIntensityScalar()
     local roll = math.Rand(0, 1)
-    local aggression = math.Clamp(intensity + AnomalyHorror.Config.EntityAggressionBoost, 0, 1)
+    local phase = AnomalyHorror.State.GetPhase()
+    local phaseBonus = 0
+    if phase == 2 then
+        phaseBonus = 0.1
+    elseif phase >= 3 then
+        phaseBonus = 0.25
+    end
 
-    if roll < 0.25 * (1 - aggression) then
+    local aggression = math.Clamp(intensity + AnomalyHorror.Config.EntityAggressionBoost + phaseBonus, 0, 1)
+
+    if roll < 0.2 * (1 - aggression) then
         return behaviors.RUN_AWAY
     end
 
-    if roll < 0.55 then
+    if phase == 2 then
+        if roll < 0.58 then
+            return behaviors.STAND_AND_VANISH
+        end
+        if roll < 0.9 - (0.15 * (1 - aggression)) then
+            return behaviors.HUNT
+        end
+        return behaviors.KILL_ON_SIGHT
+    end
+
+    if phase >= 3 then
+        if roll < 0.5 then
+            return behaviors.HUNT
+        end
+        if roll < 0.9 then
+            return behaviors.KILL_ON_SIGHT
+        end
         return behaviors.STAND_AND_VANISH
     end
 
-    if roll < 0.85 - (0.2 * (1 - aggression)) then
-        return behaviors.HUNT
+    if roll < 0.7 then
+        return behaviors.STAND_AND_VANISH
     end
-
-    return behaviors.KILL_ON_SIGHT
+    return behaviors.RUN_AWAY
 end
 
 function entityController.GetCooldown()
@@ -128,6 +151,10 @@ end
 
 function entityController.TrySpawn(ply)
     if CurTime() < entityController.NextAllowed then
+        return
+    end
+
+    if AnomalyHorror.State.GetPhase() < 2 then
         return
     end
 
@@ -161,7 +188,9 @@ function entityController.TrySpawn(ply)
     entityController.LastRepath = 0
 
     ent:EmitSound(pickSound(), 80, math.random(70, 100))
-    AnomalyHorror.SendMessage(pickMessage())
+    if AnomalyHorror.State.GetPhase() >= 2 and not AnomalyHorror.State.InGracePeriod() then
+        AnomalyHorror.SendMessage(pickMessage())
+    end
 
     timer.Create("AnomalyHorrorEntityThink", 0.1, 0, function()
         entityController.Think()

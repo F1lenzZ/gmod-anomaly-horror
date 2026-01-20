@@ -99,6 +99,10 @@ local function weaponScramble(ply)
         return
     end
 
+    if AnomalyHorror.State.GetPhase() < 2 then
+        return
+    end
+
     net.Start("anomaly_horror_weapon_scramble")
     net.WriteFloat(AnomalyHorror.Config.WeaponScrambleDuration)
     net.WriteFloat(AnomalyHorror.Config.WeaponScrambleInterval)
