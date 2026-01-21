@@ -3,29 +3,33 @@ AnomalyHorror.Breakage = AnomalyHorror.Breakage or {}
 
 local breakage = AnomalyHorror.Breakage
 
+local function safePick(pool)
+    if not pool or #pool == 0 then
+        return nil
+    end
+
+    return pool[math.random(#pool)]
+end
+
 local function getPhaseConfig(phase)
     local config = AnomalyHorror.Config
     return config.BreakageByPhase[phase] or config.BreakageByPhase[1]
-end
-
-local function pickFromPool(pool)
-    return pool[math.random(#pool)]
 end
 
 local function pickCommentary(phase)
     local commentary = AnomalyHorror.Config.BreakageCommentary
     if phase == 2 then
         if math.random() < 0.7 then
-            return pickFromPool(commentary.technical)
+            return safePick(commentary.technical)
         end
-        return pickFromPool(commentary.aware)
+        return safePick(commentary.aware)
     end
 
     if phase == 3 then
-        return pickFromPool(commentary.harsh)
+        return safePick(commentary.harsh)
     end
 
-    return pickFromPool(commentary.technical)
+    return safePick(commentary.technical)
 end
 
 local function canSendMessage(phase)
@@ -46,7 +50,12 @@ end
 
 local function logFakeError()
     local errors = AnomalyHorror.Config.FakeLuaErrors
-    ServerLog("[ERROR] " .. pickFromPool(errors) .. "\n")
+    local line = safePick(errors)
+    if not line then
+        return
+    end
+
+    ServerLog("[ERROR] " .. line .. "\n")
 end
 
 local function tryHudCommentary(phase, silenceChance)
@@ -58,7 +67,12 @@ local function tryHudCommentary(phase, silenceChance)
         return
     end
 
-    AnomalyHorror.SendMessage(string.upper(pickCommentary(phase)))
+    local message = pickCommentary(phase)
+    if not message then
+        return
+    end
+
+    AnomalyHorror.SendMessage(string.upper(message))
 end
 
 local function sendBreakageEvent(ply, eventName, duration, severity)
@@ -122,7 +136,11 @@ local function propHover(ply)
         return
     end
 
-    local prop = candidates[math.random(#candidates)]
+    local prop = safePick(candidates)
+    if not IsValid(prop) then
+        return
+    end
+
     local phys = prop:GetPhysicsObject()
     if not IsValid(phys) then
         return
@@ -130,9 +148,14 @@ local function propHover(ply)
 
     phys:EnableMotion(false)
     timer.Simple(math.Rand(0.6, 1.0), function()
-        if IsValid(phys) then
-            phys:EnableMotion(true)
-            phys:Wake()
+        if not IsValid(prop) then
+            return
+        end
+
+        local propPhys = prop:GetPhysicsObject()
+        if IsValid(propPhys) then
+            propPhys:EnableMotion(true)
+            propPhys:Wake()
         end
     end)
 end
@@ -144,7 +167,7 @@ local function pickEvent(phase)
         return nil
     end
 
-    return events[math.random(#events)]
+    return safePick(events)
 end
 
 function breakage.GetNextInterval()
@@ -240,7 +263,9 @@ function breakage.RunPulse(ply)
     elseif eventName == "FalseCalmSpike" then
         local calmDuration = math.Rand(20, 40)
         breakage.SuppressUntil = CurTime() + calmDuration
-        AnomalyHorror.Anomalies.SuppressUntil = breakage.SuppressUntil
+        if AnomalyHorror.Anomalies then
+            AnomalyHorror.Anomalies.SuppressUntil = breakage.SuppressUntil
+        end
         timer.Simple(calmDuration, function()
             if IsValid(ply) then
                 sendBreakageEvent(ply, "BlackoutPulse", 0.8, intensity)

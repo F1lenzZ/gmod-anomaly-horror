@@ -5,6 +5,14 @@ local anomalies = AnomalyHorror.Anomalies
 anomalies.SpawnedCount = anomalies.SpawnedCount or 0
 anomalies.SpawnedLimit = 12
 
+local function safePick(pool)
+    if not pool or #pool == 0 then
+        return nil
+    end
+
+    return pool[math.random(#pool)]
+end
+
 local function safeFindPlayerPosition(ply)
     if not IsValid(ply) then
         return Vector(0, 0, 0)
@@ -32,14 +40,22 @@ local function spawnPropNear(ply)
 
     local config = AnomalyHorror.Config
     local center = safeFindPlayerPosition(ply)
-    local offset = VectorRand() * math.random(200, 600)
+    local offset = VectorRand():GetNormalized() * math.random(200, 600)
     local trace = util.TraceLine({
         start = center + offset + Vector(0, 0, 300),
         endpos = center + offset - Vector(0, 0, 500),
         mask = MASK_SOLID_BRUSHONLY
     })
 
-    local model = config.PropModels[math.random(#config.PropModels)]
+    if not trace.Hit then
+        return
+    end
+
+    local model = safePick(config.PropModels)
+    if not model then
+        return
+    end
+
     local prop = ents.Create("prop_physics")
     if not IsValid(prop) then
         return
@@ -59,15 +75,23 @@ local function spawnNpcNear(ply)
     end
 
     local config = AnomalyHorror.Config
-    local npcClass = config.NpcClasses[math.random(#config.NpcClasses)]
+    local npcClass = safePick(config.NpcClasses)
+    if not npcClass then
+        return
+    end
+
     local center = safeFindPlayerPosition(ply)
-    local offset = VectorRand() * math.random(400, 700)
+    local offset = VectorRand():GetNormalized() * math.random(400, 700)
 
     local trace = util.TraceLine({
         start = center + offset + Vector(0, 0, 200),
         endpos = center + offset - Vector(0, 0, 600),
         mask = MASK_SOLID_BRUSHONLY
     })
+
+    if not trace.Hit then
+        return
+    end
 
     local npc = ents.Create(npcClass)
     if not IsValid(npc) then
@@ -82,7 +106,11 @@ end
 
 local function flickerLights()
     local styles = { "a", "b", "c", "d", "e", "f", "m" }
-    local style = styles[math.random(#styles)]
+    local style = safePick(styles)
+    if not style then
+        return
+    end
+
     engine.LightStyle(0, style)
 
     timer.Simple(math.Rand(0.4, 1.2), function()
@@ -109,7 +137,7 @@ local function physicsPulse(ply)
 
             local phys = ent:GetPhysicsObject()
             if IsValid(phys) then
-                phys:ApplyForceCenter(VectorRand() * math.random(12000, math.floor(35000 + intensity * 5000)))
+                phys:ApplyForceCenter(VectorRand():GetNormalized() * math.random(12000, math.floor(35000 + intensity * 5000)))
                 count = count + 1
                 if count >= maxTargets then
                     break
@@ -121,7 +149,11 @@ end
 
 local function consoleSpam()
     local config = AnomalyHorror.Config
-    local line = config.ConsoleSpam[math.random(#config.ConsoleSpam)]
+    local line = safePick(config.ConsoleSpam)
+    if not line then
+        return
+    end
+
     ServerLog(line .. "\n")
 end
 
@@ -164,7 +196,11 @@ local function subtlePropRotation(ply)
         return
     end
 
-    local prop = candidates[math.random(#candidates)]
+    local prop = safePick(candidates)
+    if not IsValid(prop) then
+        return
+    end
+
     local current = prop:GetAngles()
     prop:SetAngles(current + Angle(math.Rand(-2, 2), math.Rand(-4, 4), 0))
 end
@@ -271,7 +307,11 @@ local function propHesitation(ply)
         return
     end
 
-    local prop = candidates[math.random(#candidates)]
+    local prop = safePick(candidates)
+    if not IsValid(prop) then
+        return
+    end
+
     local phys = prop:GetPhysicsObject()
     if not IsValid(phys) then
         return
@@ -279,8 +319,13 @@ local function propHesitation(ply)
 
     for i = 1, 3 do
         timer.Simple(0.2 * i, function()
-            if IsValid(phys) then
-                phys:ApplyForceCenter(VectorRand() * math.random(200, 600))
+            if not IsValid(prop) then
+                return
+            end
+
+            local propPhys = prop:GetPhysicsObject()
+            if IsValid(propPhys) then
+                propPhys:ApplyForceCenter(VectorRand():GetNormalized() * math.random(200, 600))
             end
         end)
     end
@@ -524,7 +569,11 @@ function anomalies.RunPulse(ply)
     end
 
     for _ = 1, runs do
-        local anomaly = pool[math.random(#pool)]
+        local anomaly = safePick(pool)
+        if not anomaly then
+            return
+        end
+
         anomaly(ply)
     end
 end

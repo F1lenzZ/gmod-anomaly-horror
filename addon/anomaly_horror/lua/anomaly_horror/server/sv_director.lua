@@ -9,6 +9,14 @@ util.AddNetworkString("anomaly_horror_weapon_scramble")
 util.AddNetworkString("anomaly_horror_breakage_event")
 util.AddNetworkString("anomaly_horror_anomaly_event")
 
+local function safePick(pool)
+    if not pool or #pool == 0 then
+        return nil
+    end
+
+    return pool[math.random(#pool)]
+end
+
 function director.Start()
     AnomalyHorror.State.SetSessionStart(CurTime())
     director.NextEntityTime = CurTime() + math.Rand(20, 40)
@@ -81,11 +89,7 @@ end
 
 local function getRandomPlayer()
     local players = player.GetHumans()
-    if #players == 0 then
-        return nil
-    end
-
-    return players[math.random(#players)]
+    return safePick(players)
 end
 
 function director.Tick()
@@ -109,21 +113,30 @@ function director.Tick()
 
     if CurTime() >= director.NextAnomalyPulse then
         if elapsed >= AnomalyHorror.Config.QuietStartSeconds then
-            AnomalyHorror.Anomalies.RunPulse(getRandomPlayer())
+            local ply = getRandomPlayer()
+            if IsValid(ply) then
+                AnomalyHorror.Anomalies.RunPulse(ply)
+            end
             director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
         end
     end
 
     if CurTime() >= director.NextBreakageTime then
         if AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
-            AnomalyHorror.Breakage.RunPulse(getRandomPlayer())
+            local ply = getRandomPlayer()
+            if IsValid(ply) then
+                AnomalyHorror.Breakage.RunPulse(ply)
+            end
             director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
         end
     end
 
     if CurTime() >= director.NextEntityTime then
         if phase >= 2 then
-            AnomalyHorror.Entity.TrySpawn(getRandomPlayer())
+            local ply = getRandomPlayer()
+            if IsValid(ply) then
+                AnomalyHorror.Entity.TrySpawn(ply)
+            end
         end
         director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
     end

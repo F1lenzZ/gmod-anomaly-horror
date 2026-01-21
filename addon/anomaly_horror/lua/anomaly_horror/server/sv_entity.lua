@@ -6,6 +6,14 @@ local entityController = AnomalyHorror.Entity
 entityController.Current = nil
 entityController.NextAllowed = 0
 
+local function safePick(pool)
+    if not pool or #pool == 0 then
+        return nil
+    end
+
+    return pool[math.random(#pool)]
+end
+
 local behaviors = {
     RUN_AWAY = 1,
     HUNT = 2,
@@ -15,17 +23,17 @@ local behaviors = {
 
 local function pickMessage()
     local pool = AnomalyHorror.Config.MessagePool
-    return pool[math.random(#pool)]
+    return safePick(pool)
 end
 
 local function pickSound()
     local pool = AnomalyHorror.Config.EntitySounds
-    return pool[math.random(#pool)]
+    return safePick(pool)
 end
 
 local function pickModel()
     local pool = AnomalyHorror.Config.EntityModels
-    return pool[math.random(#pool)]
+    return safePick(pool)
 end
 
 local function getSpawnPosition(ply)
@@ -51,13 +59,20 @@ local function getSpawnPosition(ply)
 end
 
 local function configureEntity(ent)
-    ent:SetModel(pickModel())
+    local model = pickModel()
+    if not model then
+        return false
+    end
+
+    ent:SetModel(model)
     ent:SetMaterial("models/debug/debugwhite")
     ent:SetColor(Color(0, 0, 0))
     ent:SetRenderMode(RENDERMODE_TRANSALPHA)
     ent:DrawShadow(false)
     ent:SetCollisionGroup(COLLISION_GROUP_WORLD)
     ent:SetMoveType(MOVETYPE_NONE)
+
+    return true
 end
 
 local function shouldKillOnSight(ply, ent)
@@ -176,7 +191,10 @@ function entityController.TrySpawn(ply)
         return
     end
 
-    configureEntity(ent)
+    if not configureEntity(ent) then
+        ent:Remove()
+        return
+    end
     ent:SetPos(spawnPos)
     ent:Spawn()
     ent:Activate()
@@ -187,13 +205,20 @@ function entityController.TrySpawn(ply)
     entityController.SpawnTime = CurTime()
     entityController.LastRepath = 0
 
-    ent:EmitSound(pickSound(), 80, math.random(70, 100))
+    local soundPath = pickSound()
+    if soundPath then
+        ent:EmitSound(soundPath, 80, math.random(70, 100))
+    end
     if AnomalyHorror.State.GetPhase() >= 2
         and not AnomalyHorror.State.InGracePeriod()
         and AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
-        AnomalyHorror.SendMessage(pickMessage())
+        local message = pickMessage()
+        if message then
+            AnomalyHorror.SendMessage(message)
+        end
     end
 
+    timer.Remove("AnomalyHorrorEntityThink")
     timer.Create("AnomalyHorrorEntityThink", 0.1, 0, function()
         entityController.Think()
     end)

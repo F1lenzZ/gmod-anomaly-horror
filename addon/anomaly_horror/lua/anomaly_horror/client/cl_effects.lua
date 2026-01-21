@@ -17,6 +17,14 @@ clientState.WorldResetEnd = 0
 clientState.ShadowOffsetEnd = 0
 clientState.ShadowOffset = Vector(0, 0, 0)
 
+local function safePick(pool)
+    if not pool or #pool == 0 then
+        return nil
+    end
+
+    return pool[math.random(#pool)]
+end
+
 net.Receive("anomaly_horror_state", function()
     local elapsed = net.ReadFloat()
     clientState.Intensity = net.ReadFloat()
@@ -48,7 +56,11 @@ local function startWeaponScramble(duration, interval)
             return
         end
 
-        local weapon = weapons[math.random(#weapons)]
+        local weapon = safePick(weapons)
+        if not IsValid(weapon) then
+            return
+        end
+
         if IsValid(weapon) then
             input.SelectWeapon(weapon)
         end
@@ -114,7 +126,7 @@ local function spawnPhantomObject()
     phantom:SetColor(Color(80, 80, 80, 200))
     phantom:SetRenderMode(RENDERMODE_TRANSALPHA)
 
-    timer.Simple(0.1, function()
+    timer.Simple(math.Rand(0.2, 0.25), function()
         if IsValid(phantom) then
             phantom:Remove()
         end
