@@ -2,6 +2,7 @@ AnomalyHorror = AnomalyHorror or {}
 AnomalyHorror.Director = AnomalyHorror.Director or {}
 
 local director = AnomalyHorror.Director
+local devCvar = CreateConVar("ah_dev", "0", FCVAR_NONE, "Enable Anomaly Horror dev utilities.")
 
 util.AddNetworkString("anomaly_horror_state")
 util.AddNetworkString("anomaly_horror_message")
@@ -17,6 +18,31 @@ local function safePick(pool)
     return pool[math.random(#pool)]
 end
 
+local function devEnabled()
+    return devCvar and devCvar:GetBool()
+end
+
+local function logDevInfo()
+    if not devEnabled() then
+        return
+    end
+
+    local netStrings = {
+        "anomaly_horror_state",
+        "anomaly_horror_message",
+        "anomaly_horror_weapon_scramble",
+        "anomaly_horror_breakage_event",
+        "anomaly_horror_anomaly_event"
+    }
+    ServerLog("[AnomalyHorror][DEV] net strings: " .. table.concat(netStrings, ", ") .. "\n")
+    ServerLog(string.format(
+        "[AnomalyHorror][DEV] sessionSeconds=%.2f intensity=%.2f phase=%d\n",
+        AnomalyHorror.State.GetSessionSeconds(),
+        AnomalyHorror.State.GetIntensityScalar(),
+        AnomalyHorror.State.GetPhase()
+    ))
+end
+
 function director.Start()
     AnomalyHorror.State.SetSessionStart(CurTime())
     director.NextEntityTime = CurTime() + math.Rand(20, 40)
@@ -24,6 +50,7 @@ function director.Start()
     director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.SkyPaint = director.FindOrCreateSky()
     director.LastPhase = AnomalyHorror.State.GetPhase()
+    logDevInfo()
 end
 
 function director.FindOrCreateSky()
@@ -153,4 +180,58 @@ hook.Add("PlayerInitialSpawn", "AnomalyHorrorSendState", function(ply)
         net.WriteUInt(AnomalyHorror.State.GetPhase(), 2)
         net.Send(ply)
     end)
+end)
+
+concommand.Add("ah_dev_force_phase", function(ply, _, args)
+    if IsValid(ply) or not devEnabled() then
+        return
+    end
+
+    local target = tonumber(args[1] or "")
+    if not target or target < 1 or target > 3 then
+        return
+    end
+
+    local config = AnomalyHorror.Config
+    local elapsed = 0
+    if target == 2 then
+        elapsed = config.PhaseTimes.Mid + 1
+    elseif target == 3 then
+        elapsed = config.PhaseTimes.Late + 1
+    end
+
+    AnomalyHorror.State.SetSessionStart(CurTime() - elapsed)
+end)
+
+concommand.Add("ah_dev_force_anomaly", function(ply)
+    if IsValid(ply) or not devEnabled() then
+        return
+    end
+
+    local target = getRandomPlayer()
+    if IsValid(target) then
+        AnomalyHorror.Anomalies.RunPulse(target)
+    end
+end)
+
+concommand.Add("ah_dev_force_breakage", function(ply)
+    if IsValid(ply) or not devEnabled() then
+        return
+    end
+
+    local target = getRandomPlayer()
+    if IsValid(target) then
+        AnomalyHorror.Breakage.RunPulse(target)
+    end
+end)
+
+concommand.Add("ah_dev_force_entity", function(ply)
+    if IsValid(ply) or not devEnabled() then
+        return
+    end
+
+    local target = getRandomPlayer()
+    if IsValid(target) then
+        AnomalyHorror.Entity.TrySpawn(target)
+    end
 end)
