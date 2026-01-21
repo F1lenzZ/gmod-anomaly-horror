@@ -208,6 +208,22 @@ function breakage.RunPulse(ply)
         return
     end
 
+    if eventName == "OneTimeWorldReset" and breakage.WorldResetUsed then
+        local phaseConfig = getPhaseConfig(phase)
+        local events = phaseConfig.events
+        if events and #events > 1 then
+            local fallback = {}
+            for _, entry in ipairs(events) do
+                if entry ~= "OneTimeWorldReset" then
+                    table.insert(fallback, entry)
+                end
+            end
+            eventName = safePick(fallback)
+        else
+            return
+        end
+    end
+
     if eventName == "MicroFreeze" then
         local durations = AnomalyHorror.Config.MicroFreezeDurations
         local min = durations.p1_min

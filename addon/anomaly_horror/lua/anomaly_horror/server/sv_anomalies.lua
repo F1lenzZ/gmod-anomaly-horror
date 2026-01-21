@@ -2,8 +2,8 @@ AnomalyHorror = AnomalyHorror or {}
 AnomalyHorror.Anomalies = AnomalyHorror.Anomalies or {}
 
 local anomalies = AnomalyHorror.Anomalies
-anomalies.SpawnedCount = anomalies.SpawnedCount or 0
 anomalies.SpawnedLimit = 12
+anomalies.SpawnedEntities = anomalies.SpawnedEntities or {}
 
 local function safePick(pool)
     if not pool or #pool == 0 then
@@ -34,7 +34,17 @@ local function sendAnomalyEvent(ply, eventName, duration, severity)
 end
 
 local function spawnPropNear(ply)
-    if anomalies.SpawnedCount >= anomalies.SpawnedLimit then
+    local aliveCount = 0
+    for i = #anomalies.SpawnedEntities, 1, -1 do
+        local ent = anomalies.SpawnedEntities[i]
+        if not IsValid(ent) then
+            table.remove(anomalies.SpawnedEntities, i)
+        else
+            aliveCount = aliveCount + 1
+        end
+    end
+
+    if aliveCount >= anomalies.SpawnedLimit then
         return
     end
 
@@ -66,11 +76,21 @@ local function spawnPropNear(ply)
     prop:Spawn()
     prop:Activate()
     prop:SetCollisionGroup(COLLISION_GROUP_INTERACTIVE)
-    anomalies.SpawnedCount = anomalies.SpawnedCount + 1
+    table.insert(anomalies.SpawnedEntities, prop)
 end
 
 local function spawnNpcNear(ply)
-    if anomalies.SpawnedCount >= anomalies.SpawnedLimit then
+    local aliveCount = 0
+    for i = #anomalies.SpawnedEntities, 1, -1 do
+        local ent = anomalies.SpawnedEntities[i]
+        if not IsValid(ent) then
+            table.remove(anomalies.SpawnedEntities, i)
+        else
+            aliveCount = aliveCount + 1
+        end
+    end
+
+    if aliveCount >= anomalies.SpawnedLimit then
         return
     end
 
@@ -101,7 +121,7 @@ local function spawnNpcNear(ply)
     npc:SetPos(trace.HitPos + Vector(0, 0, 10))
     npc:Spawn()
     npc:SetSchedule(SCHED_IDLE_WANDER)
-    anomalies.SpawnedCount = anomalies.SpawnedCount + 1
+    table.insert(anomalies.SpawnedEntities, npc)
 end
 
 local function flickerLights()
