@@ -97,13 +97,11 @@ function director.Tick()
     local phase = AnomalyHorror.State.GetPhase()
 
     director.BroadcastState()
-    if elapsed >= AnomalyHorror.Config.QuietStartSeconds then
-        director.UpdateSky()
-    end
+    director.UpdateSky()
 
     if phase ~= director.LastPhase then
         if phase == 2 then
-            director.NextEntityTime = CurTime() + math.Rand(25, 55)
+            director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
         elseif phase == 3 then
             director.NextAnomalyPulse = CurTime() + math.Rand(0.8, 2.0)
             director.NextBreakageTime = CurTime() + math.Rand(1.0, 3.0)
@@ -111,32 +109,28 @@ function director.Tick()
         director.LastPhase = phase
     end
 
+    local ply = getRandomPlayer()
+    if not IsValid(ply) then
+        return
+    end
+
     if CurTime() >= director.NextAnomalyPulse then
         if elapsed >= AnomalyHorror.Config.QuietStartSeconds then
-            local ply = getRandomPlayer()
-            if IsValid(ply) then
-                AnomalyHorror.Anomalies.RunPulse(ply)
-            end
+            AnomalyHorror.Anomalies.RunPulse(ply)
             director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
         end
     end
 
     if CurTime() >= director.NextBreakageTime then
         if AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
-            local ply = getRandomPlayer()
-            if IsValid(ply) then
-                AnomalyHorror.Breakage.RunPulse(ply)
-            end
+            AnomalyHorror.Breakage.RunPulse(ply)
             director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
         end
     end
 
     if CurTime() >= director.NextEntityTime then
         if phase >= 2 then
-            local ply = getRandomPlayer()
-            if IsValid(ply) then
-                AnomalyHorror.Entity.TrySpawn(ply)
-            end
+            AnomalyHorror.Entity.TrySpawn(ply)
         end
         director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
     end
