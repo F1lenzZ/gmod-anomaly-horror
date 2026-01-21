@@ -103,8 +103,8 @@ function director.Tick()
         if phase == 2 then
             director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
         elseif phase == 3 then
-            director.NextAnomalyPulse = CurTime() + math.Rand(0.8, 2.0)
-            director.NextBreakageTime = CurTime() + math.Rand(1.0, 3.0)
+            director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
+            director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
         end
         director.LastPhase = phase
     end
