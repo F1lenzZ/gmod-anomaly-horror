@@ -191,21 +191,33 @@ local function distantSingleStep(ply)
     end
 
     local origin = safeFindPlayerPosition(ply)
-    local forward = ply:GetForward()
-    local right = ply:GetRight()
-    local backBias = math.random(0, 1) == 1 and -1 or 1
-    local lateralBias = math.random(0, 1) == 1 and -1 or 1
-    local distance = math.random(600, 1200)
-    local direction = (forward * -backBias * 0.8 + right * lateralBias * 0.6):GetNormalized()
+    local eyeAngles = ply:EyeAngles()
+    local forward = eyeAngles:Forward()
+    local right = eyeAngles:Right()
+    local yawOffsets = { 90, -90, 135, -135, 90, -90, 135, -135 }
+    local yawOffset = yawOffsets[math.random(#yawOffsets)]
+    local yawRad = math.rad(yawOffset)
+    local direction = (forward * math.cos(yawRad) + right * math.sin(yawRad)):GetNormalized()
+    local distance = math.random(240, 480)
     local target = origin + direction * distance
 
     local trace = util.TraceLine({
-        start = target + Vector(0, 0, 200),
-        endpos = target - Vector(0, 0, 600),
+        start = target + Vector(0, 0, 64),
+        endpos = target - Vector(0, 0, 256),
         mask = MASK_SOLID_BRUSHONLY
     })
 
-    local soundPos = trace.Hit and (trace.HitPos + Vector(0, 0, 6)) or (target + Vector(0, 0, 6))
+    local soundPos = trace.Hit and trace.HitPos or nil
+    if not soundPos then
+        local fallbackDistance = math.random(400, 480)
+        local fallbackTarget = origin - forward * fallbackDistance
+        local fallbackTrace = util.TraceLine({
+            start = fallbackTarget + Vector(0, 0, 64),
+            endpos = fallbackTarget - Vector(0, 0, 256),
+            mask = MASK_SOLID_BRUSHONLY
+        })
+        soundPos = fallbackTrace.Hit and fallbackTrace.HitPos or fallbackTarget
+    end
 
     sound.Play("player/footsteps/concrete1.wav", soundPos, SNDLVL_80dB, math.random(95, 105), 1)
     timer.Simple(math.Rand(0.25, 0.45), function()

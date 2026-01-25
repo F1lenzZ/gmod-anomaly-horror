@@ -406,9 +406,11 @@ function breakage.TriggerPhase2Marker(ply)
         target = safePick(player.GetHumans())
     end
 
-    net.Start("anomaly_horror_phase2_marker")
-    net.WriteFloat(0.6)
-    net.Broadcast()
+    if IsValid(target) then
+        net.Start("anomaly_horror_phase2_marker")
+        net.WriteFloat(0.6)
+        net.Send(target)
+    end
 
     if canSendMessage(2) then
         AnomalyHorror.SendMessage("SOMETHING JUST SHIFTED.")

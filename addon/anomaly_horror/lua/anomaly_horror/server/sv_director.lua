@@ -75,7 +75,7 @@ function director.RunBeatEmptyThreat(ply)
     net.WriteString("EmptyThreat")
     net.WriteBool(false)
     net.WriteFloat(0.5)
-    net.Broadcast()
+    net.Send(ply)
 
     director.BeatCalmUntil = CurTime() + math.Rand(30, 60)
 

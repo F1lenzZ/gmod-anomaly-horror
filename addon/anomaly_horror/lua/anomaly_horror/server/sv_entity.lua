@@ -18,7 +18,8 @@ local behaviors = {
     RUN_AWAY = 1,
     HUNT = 2,
     KILL_ON_SIGHT = 3,
-    STAND_AND_VANISH = 4
+    STAND_AND_VANISH = 4,
+    STALK = 5
 }
 
 local function pickMessage()
@@ -34,6 +35,39 @@ end
 local function pickModel()
     local pool = AnomalyHorror.Config.EntityModels
     return safePick(pool)
+end
+
+local function traceToGround(origin)
+    local trace = util.TraceLine({
+        start = origin + Vector(0, 0, 64),
+        endpos = origin - Vector(0, 0, 256),
+        mask = MASK_SOLID_BRUSHONLY
+    })
+
+    if trace.Hit then
+        return trace.HitPos + Vector(0, 0, 6)
+    end
+
+    return nil
+end
+
+local function pickStalkPosition(ply)
+    if not IsValid(ply) then
+        return nil
+    end
+
+    local forward = ply:EyeAngles():Forward()
+    local right = ply:EyeAngles():Right()
+    local target = ply:GetPos()
+        - forward * math.random(480, 800)
+        + right * math.random(-240, 240)
+    local grounded = traceToGround(target)
+    if grounded then
+        return grounded
+    end
+
+    local fallback = ply:GetPos() - forward * math.random(560, 720)
+    return traceToGround(fallback) or fallback
 end
 
 local function getSpawnPosition(ply)
@@ -104,6 +138,30 @@ local function moveEntity(ent, direction, speed)
     ent:SetPos(pos)
 end
 
+local function canUseStalk()
+    local phase = AnomalyHorror.State.GetPhase()
+    if phase < 2 then
+        return false
+    end
+
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
+    if (phase == 2 and intensity < 0.15) or (phase >= 3 and intensity < 0.3) then
+        return false
+    end
+
+    if entityController.StalkNextAllowed and CurTime() < entityController.StalkNextAllowed then
+        return false
+    end
+
+    entityController.StalkUsedByPhase = entityController.StalkUsedByPhase or {}
+    local used = entityController.StalkUsedByPhase[phase] or 0
+    if used >= 2 then
+        return false
+    end
+
+    return true
+end
+
 local function pickBehavior()
     local intensity = AnomalyHorror.State.GetIntensityScalar()
     local roll = math.Rand(0, 1)
@@ -116,6 +174,13 @@ local function pickBehavior()
     end
 
     local aggression = math.Clamp(intensity + AnomalyHorror.Config.EntityAggressionBoost + phaseBonus, 0, 1)
+
+    if canUseStalk() then
+        local stalkChance = phase == 2 and 0.3 or 0.18
+        if math.Rand(0, 1) < stalkChance then
+            return behaviors.STALK
+        end
+    end
 
     if roll < 0.2 * (1 - aggression) then
         return behaviors.RUN_AWAY
@@ -204,6 +269,20 @@ function entityController.TrySpawn(ply)
     entityController.Target = ply
     entityController.SpawnTime = CurTime()
     entityController.LastRepath = 0
+    entityController.StalkTargetPos = nil
+    entityController.StalkNextUpdate = 0
+    entityController.StalkFrozenUntil = nil
+    entityController.StalkShiftPos = nil
+    entityController.StalkReacted = nil
+    entityController.StalkEndTime = nil
+
+    if entityController.Mode == behaviors.STALK then
+        entityController.StalkEndTime = CurTime() + math.Rand(12, 22)
+        entityController.StalkNextAllowed = CurTime() + math.Rand(90, 150)
+        entityController.StalkUsedByPhase = entityController.StalkUsedByPhase or {}
+        local phase = AnomalyHorror.State.GetPhase()
+        entityController.StalkUsedByPhase[phase] = (entityController.StalkUsedByPhase[phase] or 0) + 1
+    end
 
     local soundPath = pickSound()
     if soundPath then
@@ -232,6 +311,13 @@ function entityController.Vanish()
 
     entityController.Current = nil
     entityController.Target = nil
+    entityController.Mode = nil
+    entityController.StalkTargetPos = nil
+    entityController.StalkNextUpdate = 0
+    entityController.StalkFrozenUntil = nil
+    entityController.StalkShiftPos = nil
+    entityController.StalkReacted = nil
+    entityController.StalkEndTime = nil
     entityController.NextAllowed = CurTime() + entityController.GetCooldown()
 
     timer.Remove("AnomalyHorrorEntityThink")
@@ -261,6 +347,72 @@ function entityController.Think()
         moveEntity(ent, direction * -1, fleeSpeed)
         if distance > 1400 then
             entityController.Vanish()
+        end
+    elseif entityController.Mode == behaviors.STALK then
+        local phase = AnomalyHorror.State.GetPhase()
+        if phase < 2 then
+            entityController.Vanish()
+            return
+        end
+
+        if entityController.StalkEndTime and CurTime() >= entityController.StalkEndTime then
+            entityController.Vanish()
+            return
+        end
+
+        if distance <= 320 then
+            entityController.Vanish()
+            return
+        end
+
+        local toEntity = (ent:WorldSpaceCenter() - ply:EyePos()):GetNormalized()
+        local dot = ply:EyeAngles():Forward():Dot(toEntity)
+        if dot > 0.88 then
+            local trace = util.TraceLine({
+                start = ply:EyePos(),
+                endpos = ent:WorldSpaceCenter(),
+                filter = { ply, ent },
+                mask = MASK_SOLID_BRUSHONLY
+            })
+            if not trace.Hit and not entityController.StalkReacted then
+                entityController.StalkReacted = true
+                if math.random() < 0.7 then
+                    entityController.Vanish()
+                    return
+                end
+
+                entityController.StalkFrozenUntil = CurTime() + math.Rand(0.8, 1.6)
+                entityController.StalkShiftPos = ent:GetPos()
+                    + ply:EyeAngles():Right() * math.random(-160, 160)
+            end
+        end
+
+        if entityController.StalkFrozenUntil then
+            if CurTime() < entityController.StalkFrozenUntil then
+                return
+            end
+
+            if entityController.StalkShiftPos then
+                local grounded = traceToGround(entityController.StalkShiftPos)
+                ent:SetPos(grounded or entityController.StalkShiftPos)
+            end
+            entityController.StalkFrozenUntil = nil
+            entityController.StalkShiftPos = nil
+        end
+
+        if CurTime() >= (entityController.StalkNextUpdate or 0) then
+            entityController.StalkTargetPos = pickStalkPosition(ply)
+            entityController.StalkNextUpdate = CurTime() + math.Rand(0.3, 0.5)
+        end
+
+        local stalkTarget = entityController.StalkTargetPos
+        if stalkTarget then
+            local toTarget = stalkTarget - ent:GetPos()
+            local targetDistance = toTarget:Length()
+            if targetDistance > 90 then
+                local stalkSpeed = math.Rand(120, 180) * 0.1
+                moveEntity(ent, toTarget:GetNormalized(), stalkSpeed)
+            end
         end
     elseif entityController.Mode == behaviors.HUNT then
         local chaseSpeed = AnomalyHorror.Config.EntityChaseSpeed * (0.1 + intensity * 0.1)
