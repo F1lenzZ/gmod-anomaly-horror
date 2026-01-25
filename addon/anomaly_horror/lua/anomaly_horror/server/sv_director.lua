@@ -9,6 +9,10 @@ util.AddNetworkString("anomaly_horror_message")
 util.AddNetworkString("anomaly_horror_weapon_scramble")
 util.AddNetworkString("anomaly_horror_breakage_event")
 util.AddNetworkString("anomaly_horror_anomaly_event")
+util.AddNetworkString("anomaly_horror_phase2_marker")
+util.AddNetworkString("anomaly_horror_view_nudge")
+util.AddNetworkString("anomaly_horror_beat")
+util.AddNetworkString("anomaly_horror_hint")
 
 local function safePick(pool)
     if not pool or #pool == 0 then
@@ -50,7 +54,47 @@ function director.Start()
     director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.SkyPaint = director.FindOrCreateSky()
     director.LastPhase = AnomalyHorror.State.GetPhase()
+    director.Phase2MarkerTriggered = director.LastPhase >= 2
+    director.BeatCalmUntil = 0
+    local beatState = updateBeatState()
+    beatState.nextAllowedBeatTime = CurTime() + math.Rand(240, 420)
+    beatState.nextAllowedByBeat.EmptyThreat = beatState.nextAllowedBeatTime
+    beatState.nextAllowedByBeat.SeenButNotThere = CurTime() + math.Rand(300, 540)
+    updateHintState()
     logDevInfo()
+end
+
+function director.RunBeatEmptyThreat(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    AnomalyHorror.Anomalies.RunBeat("EmptyThreat", ply)
+
+    net.Start("anomaly_horror_beat")
+    net.WriteString("EmptyThreat")
+    net.WriteBool(false)
+    net.WriteFloat(0.5)
+    net.Broadcast()
+
+    director.BeatCalmUntil = CurTime() + math.Rand(30, 60)
+
+    if devEnabled() then
+        ServerLog(string.format("[AnomalyHorror][DEV] beat EmptyThreat intensity=%.2f\n", AnomalyHorror.State.GetIntensityScalar()))
+    end
+end
+
+function director.RunBeatSeenButNotThere(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    AnomalyHorror.Anomalies.RunBeat("SeenButNotThere", ply)
+    director.BeatCalmUntil = CurTime() + math.Rand(20, 40)
+
+    if devEnabled() then
+        ServerLog(string.format("[AnomalyHorror][DEV] beat SeenButNotThere intensity=%.2f\n", AnomalyHorror.State.GetIntensityScalar()))
+    end
 end
 
 function director.FindOrCreateSky()
@@ -119,14 +163,98 @@ local function getRandomPlayer()
     return safePick(players)
 end
 
+local hintPoolByPhase = {
+    [1] = {
+        "…did you move?",
+        "hold still.",
+        "wrong sound.",
+        "don’t rush.",
+        "something is off."
+    },
+    [2] = {
+        "if you run, it hears you.",
+        "don’t look back.",
+        "stay quiet.",
+        "stop moving.",
+        "it’s closer than you think."
+    },
+    [3] = {
+        "it learns.",
+        "you can’t trust the quiet.",
+        "it’s watching.",
+        "you missed it.",
+        "not a bug."
+    }
+}
+
+local hintRunBias = {
+    "if you run, it hears you.",
+    "don’t rush."
+}
+
+local hintStillBias = {
+    "hold still.",
+    "stay quiet.",
+    "stop moving."
+}
+
+local function updateHintState()
+    director.HintState = director.HintState or {
+        nextHintTime = CurTime() + math.Rand(120, 240),
+        lastHintText = ""
+    }
+
+    return director.HintState
+end
+
+local function pickHintText(phase, context)
+    local pool = hintPoolByPhase[phase] or hintPoolByPhase[1]
+    local candidate = nil
+
+    if context == "RUN" then
+        candidate = safePick(hintRunBias) or safePick(pool)
+    elseif context == "STILL" then
+        candidate = safePick(hintStillBias) or safePick(pool)
+    else
+        candidate = safePick(pool)
+    end
+
+    if candidate then
+        return candidate
+    end
+
+    return safePick(pool)
+end
+
+local function updateBeatState()
+    director.BeatState = director.BeatState or {
+        lastBeatTime = 0,
+        nextAllowedBeatTime = CurTime(),
+        nextAllowedByBeat = {},
+        usedCount = {
+            EmptyThreat = 0,
+            SeenButNotThere = 0
+        }
+    }
+
+    return director.BeatState
+end
+
 function director.Tick()
     local elapsed = AnomalyHorror.State.GetSessionSeconds()
     local phase = AnomalyHorror.State.GetPhase()
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
 
     director.BroadcastState()
     director.UpdateSky()
 
     if phase ~= director.LastPhase then
+        if director.LastPhase == 1 and phase == 2 and not director.Phase2MarkerTriggered then
+            director.Phase2MarkerTriggered = true
+            local markerTarget = getRandomPlayer()
+            AnomalyHorror.Breakage.TriggerPhase2Marker(markerTarget)
+        end
+
         if phase == 2 then
             director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
         elseif phase == 3 then
@@ -141,15 +269,32 @@ function director.Tick()
         return
     end
 
+    local beatState = updateBeatState()
+    local beatCalmActive = CurTime() < (director.BeatCalmUntil or 0)
+    local hintState = updateHintState()
+    local speed = ply:GetVelocity():Length()
+    director.ContinuousStill = director.ContinuousStill or 0
+    director.ContinuousRun = director.ContinuousRun or 0
+    if speed < 20 then
+        director.ContinuousStill = director.ContinuousStill + AnomalyHorror.Config.UpdateInterval
+        director.ContinuousRun = 0
+    elseif speed > 200 then
+        director.ContinuousRun = director.ContinuousRun + AnomalyHorror.Config.UpdateInterval
+        director.ContinuousStill = 0
+    else
+        director.ContinuousStill = 0
+        director.ContinuousRun = 0
+    end
+
     if CurTime() >= director.NextAnomalyPulse then
-        if elapsed >= AnomalyHorror.Config.QuietStartSeconds then
+        if elapsed >= AnomalyHorror.Config.QuietStartSeconds and not beatCalmActive then
             AnomalyHorror.Anomalies.RunPulse(ply)
             director.NextAnomalyPulse = CurTime() + AnomalyHorror.Anomalies.GetNextInterval()
         end
     end
 
     if CurTime() >= director.NextBreakageTime then
-        if AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
+        if elapsed >= AnomalyHorror.Config.QuietStartSeconds and not beatCalmActive then
             AnomalyHorror.Breakage.RunPulse(ply)
             director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
         end
@@ -160,6 +305,59 @@ function director.Tick()
             AnomalyHorror.Entity.TrySpawn(ply)
         end
         director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
+    end
+
+    if elapsed >= AnomalyHorror.Config.QuietStartSeconds
+        and (phase == 1 or phase == 2)
+        and intensity > 0.05
+        and CurTime() >= (beatState.nextAllowedByBeat.EmptyThreat or 0)
+        and (beatState.usedCount.EmptyThreat or 0) < 2 then
+        if math.random() < 0.06 then
+            beatState.usedCount.EmptyThreat = (beatState.usedCount.EmptyThreat or 0) + 1
+            beatState.lastBeatTime = CurTime()
+            beatState.nextAllowedByBeat.EmptyThreat = CurTime() + math.Rand(240, 420)
+            beatState.nextAllowedBeatTime = beatState.nextAllowedByBeat.EmptyThreat
+            director.RunBeatEmptyThreat(ply)
+        end
+    end
+
+    if not beatCalmActive
+        and elapsed >= AnomalyHorror.Config.QuietStartSeconds
+        and (phase == 2 or phase == 3)
+        and intensity > 0.2
+        and CurTime() >= (beatState.nextAllowedByBeat.SeenButNotThere or 0)
+        and (beatState.usedCount.SeenButNotThere or 0) < 1 then
+        if math.random() < 0.04 then
+            beatState.usedCount.SeenButNotThere = (beatState.usedCount.SeenButNotThere or 0) + 1
+            beatState.lastBeatTime = CurTime()
+            beatState.nextAllowedByBeat.SeenButNotThere = CurTime() + math.Rand(300, 540)
+            director.RunBeatSeenButNotThere(ply)
+        end
+    end
+
+    if elapsed > AnomalyHorror.Config.QuietStartSeconds
+        and not beatCalmActive
+        and CurTime() >= hintState.nextHintTime then
+        local context = "DEFAULT"
+        if director.ContinuousStill >= 8 then
+            context = "STILL"
+        elseif director.ContinuousRun >= 10 then
+            context = "RUN"
+        end
+
+        local hintText = pickHintText(phase, context)
+        if hintText and hintText ~= hintState.lastHintText then
+            local ttl = math.Rand(1.8, 2.5)
+            net.Start("anomaly_horror_hint")
+            net.WriteString(hintText)
+            net.WriteFloat(ttl)
+            net.Send(ply)
+            hintState.lastHintText = hintText
+            local delay = phase == 3 and math.Rand(120, 220) or math.Rand(140, 260)
+            hintState.nextHintTime = CurTime() + math.max(90, delay)
+        else
+            hintState.nextHintTime = CurTime() + math.Rand(140, 260)
+        end
     end
 end
 

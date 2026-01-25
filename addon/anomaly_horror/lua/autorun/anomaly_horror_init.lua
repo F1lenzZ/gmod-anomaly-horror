@@ -1,13 +1,9 @@
-if SERVER then
-    AddCSLuaFile()
-end
+AddCSLuaFile()
 
 AnomalyHorror = AnomalyHorror or {}
 
 local function includeShared(path)
-    if SERVER then
-        AddCSLuaFile(path)
-    end
+    AddCSLuaFile(path)
     include(path)
 end
 

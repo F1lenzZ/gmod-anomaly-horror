@@ -62,6 +62,9 @@ AnomalyHorror.Config = {
     },
     BreakageCooldownMin = 18,
     BreakageCooldownMax = 55,
+    Phase1ExtraEvents = {
+        "SubtleViewBreath"
+    },
     BreakageByPhase = {
         [1] = {
             events = {},
@@ -69,7 +72,12 @@ AnomalyHorror.Config = {
             silenceChance = 0.9
         },
         [2] = {
-            events = {},
+            events = {
+                "SubtleSoundDesync",
+                "AudioActionDesync",
+                "DelayedReaction",
+                "MicroFreeze"
+            },
             frequencyMultiplier = 0.75,
             silenceChance = 0.4
         },
@@ -87,6 +95,7 @@ AnomalyHorror.Config = {
                 "PhantomObjectFlash",
                 "ShadowOffset",
                 "ImpossibleSoundDirection",
+                "FalseCalmSpike",
                 "FalseCalmSpike",
                 "OneTimeWorldReset"
             },

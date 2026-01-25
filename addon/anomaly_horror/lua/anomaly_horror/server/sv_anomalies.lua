@@ -191,9 +191,95 @@ local function distantSingleStep(ply)
     end
 
     local origin = safeFindPlayerPosition(ply)
-    local offset = VectorRand():GetNormalized() * math.random(900, 1400)
-    local pos = origin + offset
-    sound.Play("player/footsteps/concrete1.wav", pos, 60, math.random(85, 95), 0.25)
+    local forward = ply:GetForward()
+    local right = ply:GetRight()
+    local backBias = math.random(0, 1) == 1 and -1 or 1
+    local lateralBias = math.random(0, 1) == 1 and -1 or 1
+    local distance = math.random(600, 1200)
+    local direction = (forward * -backBias * 0.8 + right * lateralBias * 0.6):GetNormalized()
+    local target = origin + direction * distance
+
+    local trace = util.TraceLine({
+        start = target + Vector(0, 0, 200),
+        endpos = target - Vector(0, 0, 600),
+        mask = MASK_SOLID_BRUSHONLY
+    })
+
+    local soundPos = trace.Hit and (trace.HitPos + Vector(0, 0, 6)) or (target + Vector(0, 0, 6))
+
+    sound.Play("player/footsteps/concrete1.wav", soundPos, SNDLVL_80dB, math.random(95, 105), 1)
+    timer.Simple(math.Rand(0.25, 0.45), function()
+        if not IsValid(ply) then
+            return
+        end
+
+        sound.Play("player/footsteps/concrete2.wav", soundPos, SNDLVL_75dB, math.random(95, 105), 0.75)
+    end)
+end
+
+local function performEmptyThreatSteps(ply)
+    distantSingleStep(ply)
+end
+
+local function buildPeripheralPosition(ply)
+    if not IsValid(ply) then
+        return nil
+    end
+
+    local eyePos = ply:EyePos()
+    local forward = ply:GetForward()
+    local right = ply:GetRight()
+    local yawOffset = math.random(35, 65) * (math.random(0, 1) == 1 and -1 or 1)
+    local direction = (forward:Angle() + Angle(0, yawOffset, 0)):Forward()
+    local distance = math.random(1000, 1800)
+    local target = eyePos + direction * distance + right * math.random(-120, 120)
+
+    local trace = util.TraceLine({
+        start = target + Vector(0, 0, 200),
+        endpos = target - Vector(0, 0, 800),
+        mask = MASK_SOLID_BRUSHONLY
+    })
+
+    if trace.Hit then
+        local hitPos = trace.HitPos + Vector(0, 0, 6)
+        local distToPlayer = hitPos:Distance(ply:GetPos())
+        if distToPlayer >= 800 and distToPlayer <= 2000 then
+            return hitPos
+        end
+    end
+
+    local fallbackDir = (right * (math.random(0, 1) == 1 and 1 or -1) - forward * 0.4):GetNormalized()
+    local fallbackPos = ply:GetPos() + fallbackDir * math.random(1200, 1400)
+    local fallbackTrace = util.TraceLine({
+        start = fallbackPos + Vector(0, 0, 200),
+        endpos = fallbackPos - Vector(0, 0, 800),
+        mask = MASK_SOLID_BRUSHONLY
+    })
+
+    if fallbackTrace.Hit then
+        return fallbackTrace.HitPos + Vector(0, 0, 6)
+    end
+
+    return fallbackPos + Vector(0, 0, 6)
+end
+
+local function runSeenButNotThereBeat(ply)
+    local phantomPos = buildPeripheralPosition(ply)
+    if not phantomPos then
+        return
+    end
+
+    local duration = math.Rand(0.35, 0.65)
+
+    net.Start("anomaly_horror_beat")
+    net.WriteString("SeenButNotThere")
+    net.WriteBool(true)
+    net.WriteVector(phantomPos)
+    net.WriteFloat(duration)
+    net.Send(ply)
+
+    local soundOffset = phantomPos + VectorRand():GetNormalized() * math.random(200, 400)
+    sound.Play("ambient/creatures/town_scared_breathing1.wav", soundOffset, SNDLVL_80dB, math.random(95, 105), 0.9)
 end
 
 local function subtlePropRotation(ply)
@@ -355,6 +441,17 @@ local function cameraBreathTiny(ply)
     sendAnomalyEvent(ply, "CameraBreathTiny", math.Rand(1, 2), AnomalyHorror.State.GetIntensityScalar())
 end
 
+local function subtleViewBreath(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    net.Start("anomaly_horror_view_nudge")
+    net.WriteFloat(math.Rand(-0.4, 0.4))
+    net.WriteFloat(math.Rand(-0.4, 0.4))
+    net.Send(ply)
+end
+
 local function weaponScramble(ply)
     if not IsValid(ply) then
         return
@@ -415,6 +512,12 @@ local anomalyPoolP1 = {
     function(ply)
         if math.random() < 0.06 then
             hudMicroOffset(ply)
+        end
+    end,
+    function(ply)
+        local extras = AnomalyHorror.Config.Phase1ExtraEvents
+        if extras and table.HasValue(extras, "SubtleViewBreath") and math.random() < 0.05 then
+            subtleViewBreath(ply)
         end
     end,
     function(ply)
@@ -595,5 +698,20 @@ function anomalies.RunPulse(ply)
         end
 
         anomaly(ply)
+    end
+end
+
+function anomalies.RunBeat(beatName, ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    if beatName == "EmptyThreat" then
+        performEmptyThreatSteps(ply)
+        return
+    end
+
+    if beatName == "SeenButNotThere" then
+        runSeenButNotThereBeat(ply)
     end
 end

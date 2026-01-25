@@ -16,6 +16,7 @@ clientState.CameraBreathEnd = 0
 clientState.WorldResetEnd = 0
 clientState.ShadowOffsetEnd = 0
 clientState.ShadowOffset = Vector(0, 0, 0)
+clientState.Phase2MarkerEnd = 0
 
 local function safePick(pool)
     if not pool or #pool == 0 then
@@ -71,6 +72,61 @@ net.Receive("anomaly_horror_weapon_scramble", function()
     local duration = net.ReadFloat()
     local interval = net.ReadFloat()
     startWeaponScramble(duration, interval)
+end)
+
+net.Receive("anomaly_horror_phase2_marker", function()
+    local duration = net.ReadFloat()
+    clientState.Phase2MarkerEnd = CurTime() + math.max(0.4, duration)
+
+    local ply = LocalPlayer()
+    if not IsValid(ply) then
+        return
+    end
+
+    ply:ScreenFade(SCREENFADE.OUT, Color(0, 0, 0, 220), 0.12, 0.05)
+    ply:ScreenFade(SCREENFADE.IN, Color(0, 0, 0, 0), 0.18, 0)
+    ply:EmitSound("ambient/levels/citadel/weapon_disintegrate1.wav", 60, 95)
+end)
+
+net.Receive("anomaly_horror_view_nudge", function()
+    local pitch = net.ReadFloat()
+    local yaw = net.ReadFloat()
+    local ply = LocalPlayer()
+    if not IsValid(ply) then
+        return
+    end
+
+    ply:ViewPunch(Angle(pitch, yaw, 0))
+end)
+
+net.Receive("anomaly_horror_beat", function()
+    local beatName = net.ReadString()
+    local hasVector = net.ReadBool()
+    local phantomPos = hasVector and net.ReadVector() or nil
+    local duration = net.ReadFloat()
+    if beatName ~= "EmptyThreat" then
+        if beatName ~= "SeenButNotThere" or not phantomPos then
+            return
+        end
+    end
+
+    local ply = LocalPlayer()
+    if not IsValid(ply) then
+        return
+    end
+
+    if beatName == "EmptyThreat" then
+        local strength = math.Clamp(duration or 0.5, 0.2, 0.8)
+        ply:ViewPunch(Angle(math.Rand(-0.2, 0.2) * strength, math.Rand(-0.25, 0.25) * strength, 0))
+        return
+    end
+
+    local endTime = CurTime() + math.Clamp(duration or 0.5, 0.35, 0.7)
+    clientState.PhantomBeat = {
+        pos = phantomPos,
+        endTime = endTime,
+        jitter = math.Rand(0.5, 1.4)
+    }
 end)
 
 local function startBreakageFreeze(duration, severity)
@@ -427,9 +483,29 @@ hook.Add("RenderScreenspaceEffects", "AnomalyHorrorScreenEffects", function()
     if CurTime() < clientState.CameraBreathEnd then
         DrawMotionBlur(0.03, 0.2, 0.01)
     end
+
+    if CurTime() < clientState.Phase2MarkerEnd then
+        DrawMotionBlur(0.06, 0.25, 0.02)
+    end
 end)
 
 hook.Add("PostDrawTranslucentRenderables", "AnomalyHorrorShadowOffset", function()
+    local phantom = clientState.PhantomBeat
+    if phantom and CurTime() < phantom.endTime then
+        local screenPos = phantom.pos:ToScreen()
+        if screenPos.visible then
+            cam.Start2D()
+            surface.SetDrawColor(0, 0, 0, 180)
+            local size = 48
+            local jitterX = math.sin(CurTime() * 18) * phantom.jitter * 2
+            local jitterY = math.cos(CurTime() * 16) * phantom.jitter * 2
+            surface.DrawRect(screenPos.x - size * 0.5 + jitterX, screenPos.y - size + jitterY, size, size * 2)
+            cam.End2D()
+        end
+    elseif phantom then
+        clientState.PhantomBeat = nil
+    end
+
     if CurTime() >= clientState.ShadowOffsetEnd then
         return
     end
