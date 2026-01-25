@@ -1,0 +1,422 @@
+AnomalyHorror = AnomalyHorror or {}
+AnomalyHorror.Breakage = AnomalyHorror.Breakage or {}
+
+local breakage = AnomalyHorror.Breakage
+
+local phase2Messages = {
+    "minor desync detected",
+    "input variance",
+    "did you hear that?",
+    "signal jitter"
+}
+
+local phase3Messages = {
+    "rollback failed",
+    "state invalid",
+    "you thought it crashed",
+    "the stack remembers you"
+}
+
+local eventCooldowns = {
+    MicroFreeze = { 45, 70 },
+    SubtleSoundDesync = { 25, 40 },
+    AudioActionDesync = { 30, 50 },
+    DelayedReaction = { 25, 40 },
+    ImpossibleSoundDirection = { 35, 55 },
+    FakeCrash = { 90, 150 },
+    FakeLuaError = { 80, 140 },
+    BlackoutPulse = { 45, 90 },
+    FalseCalmSpike = { 60, 110 },
+    ShortFreeze = { 45, 80 },
+    CausalInversion = { 60, 100 },
+    ControlNudge = { 50, 90 },
+    LogicFlip = { 60, 110 },
+    PhantomObjectFlash = { 40, 80 },
+    ShadowOffset = { 50, 90 }
+}
+
+local function safePick(pool)
+    if not pool or #pool == 0 then
+        return nil
+    end
+
+    return pool[math.random(#pool)]
+end
+
+local function getPhaseConfig(phase)
+    local config = AnomalyHorror.Config
+    return config.BreakageByPhase[phase] or config.BreakageByPhase[1]
+end
+
+local function pickCommentary(phase)
+    if phase == 2 then
+        return safePick(phase2Messages)
+    end
+
+    if phase >= 3 then
+        return safePick(phase3Messages)
+    end
+
+    return nil
+end
+
+local function canSendMessage(phase)
+    if phase < 2 then
+        return false
+    end
+
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return false
+    end
+
+    if AnomalyHorror.State.InGracePeriod() then
+        return false
+    end
+
+    return true
+end
+
+local function logFakeError()
+    local errors = AnomalyHorror.Config.FakeLuaErrors
+    local line = safePick(errors)
+    if not line then
+        return
+    end
+
+    ServerLog("[ERROR] " .. line .. "\n")
+end
+
+local function tryHudCommentary(phase, silenceChance)
+    if not canSendMessage(phase) then
+        return
+    end
+
+    local adjustedSilenceChance = silenceChance
+    if phase == 2 then
+        adjustedSilenceChance = math.Clamp(silenceChance + 0.2, 0, 0.95)
+    end
+
+    if math.random() < adjustedSilenceChance then
+        return
+    end
+
+    local message = pickCommentary(phase)
+    if not message then
+        return
+    end
+
+    AnomalyHorror.SendMessage(string.upper(message))
+end
+
+local function canRunEvent(eventName)
+    local nextAllowed = breakage.NextAllowedByEvent and breakage.NextAllowedByEvent[eventName]
+    return not nextAllowed or CurTime() >= nextAllowed
+end
+
+local function setEventCooldown(eventName)
+    local range = eventCooldowns[eventName]
+    if not range then
+        return
+    end
+
+    breakage.NextAllowedByEvent = breakage.NextAllowedByEvent or {}
+    breakage.NextAllowedByEvent[eventName] = CurTime() + math.Rand(range[1], range[2])
+end
+
+local function isEventUsable(eventName)
+    if eventName == "OneTimeWorldReset" and breakage.WorldResetUsed then
+        return false
+    end
+
+    return canRunEvent(eventName)
+end
+
+local function pickEventWithGuards(phase)
+    local phaseConfig = getPhaseConfig(phase)
+    local events = phaseConfig.events
+    if not events or #events == 0 then
+        return nil
+    end
+
+    local lastEvent = breakage.LastEvent
+    local attempts = 3
+    local candidate = nil
+
+    for _ = 1, attempts do
+        local roll = safePick(events)
+        if not roll then
+            return nil
+        end
+
+        if roll ~= lastEvent and isEventUsable(roll) then
+            candidate = roll
+            break
+        end
+
+        candidate = candidate or (isEventUsable(roll) and roll or nil)
+    end
+
+    if candidate and isEventUsable(candidate) then
+        return candidate
+    end
+
+    local filtered = {}
+    for _, entry in ipairs(events) do
+        if entry ~= lastEvent and isEventUsable(entry) then
+            table.insert(filtered, entry)
+        end
+    end
+
+    return safePick(filtered)
+end
+
+local function sendBreakageEvent(ply, eventName, duration, severity)
+    if not IsValid(ply) then
+        return
+    end
+
+    net.Start("anomaly_horror_breakage_event")
+    net.WriteString(eventName)
+    net.WriteFloat(duration or 0)
+    net.WriteFloat(severity or 0)
+    net.Send(ply)
+end
+
+local function npcStall(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    local target = nil
+    local distance = math.huge
+    for _, npc in ipairs(ents.FindByClass("npc_*")) do
+        if IsValid(npc) then
+            local dist = npc:GetPos():Distance(ply:GetPos())
+            if dist < distance and dist < 800 then
+                target = npc
+                distance = dist
+            end
+        end
+    end
+
+    if not IsValid(target) then
+        return
+    end
+
+    target:SetSchedule(SCHED_IDLE_STAND)
+    timer.Simple(1, function()
+        if IsValid(target) then
+            target:SetSchedule(SCHED_IDLE_WANDER)
+        end
+    end)
+end
+
+local function propHover(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    local props = ents.FindInSphere(ply:GetPos(), 700)
+    local candidates = {}
+    for _, ent in ipairs(props) do
+        if IsValid(ent) then
+            local phys = ent:GetPhysicsObject()
+            if IsValid(phys) then
+                table.insert(candidates, ent)
+            end
+        end
+    end
+
+    if #candidates == 0 then
+        return
+    end
+
+    local prop = safePick(candidates)
+    if not IsValid(prop) then
+        return
+    end
+
+    local phys = prop:GetPhysicsObject()
+    if not IsValid(phys) then
+        return
+    end
+
+    phys:EnableMotion(false)
+    timer.Simple(math.Rand(0.6, 1.0), function()
+        if not IsValid(prop) then
+            return
+        end
+
+        local propPhys = prop:GetPhysicsObject()
+        if IsValid(propPhys) then
+            propPhys:EnableMotion(true)
+            propPhys:Wake()
+        end
+    end)
+end
+
+local function pickEvent(phase)
+    return pickEventWithGuards(phase)
+end
+
+function breakage.GetNextInterval()
+    local config = AnomalyHorror.Config
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
+    local phase = AnomalyHorror.State.GetPhase()
+    local phaseConfig = getPhaseConfig(phase)
+    local min = config.BreakageCooldownMin
+    local max = config.BreakageCooldownMax
+    local interval = max - (max - min) * intensity
+    interval = interval * (phaseConfig.frequencyMultiplier or 1)
+
+    return math.max(min, interval + math.Rand(-3, 6))
+end
+
+function breakage.RunPulse(ply)
+    if not IsValid(ply) then
+        return
+    end
+
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
+    if breakage.SuppressUntil and CurTime() < breakage.SuppressUntil then
+        return
+    end
+
+    local phase = AnomalyHorror.State.GetPhase()
+    local intensity = AnomalyHorror.State.GetIntensityScalar()
+    local phaseConfig = getPhaseConfig(phase)
+    local eventName = pickEvent(phase)
+    if not eventName then
+        return
+    end
+
+    local executed = false
+    if eventName == "MicroFreeze" then
+        local durations = AnomalyHorror.Config.MicroFreezeDurations
+        local min = durations.p1_min
+        local max = durations.p1_max
+        if phase == 2 then
+            min = durations.p2_min
+            max = durations.p2_max
+        elseif phase == 3 then
+            min = durations.p3_min
+            max = durations.p3_max
+        end
+        sendBreakageEvent(ply, "MicroFreeze", math.Rand(min, max), intensity)
+        executed = true
+    elseif eventName == "SubtleSoundDesync" then
+        sendBreakageEvent(ply, "SubtleSoundDesync", math.Rand(0.2, 0.5), intensity)
+        executed = true
+    elseif eventName == "MinorHudDoubleDraw" then
+        sendBreakageEvent(ply, "MinorHudDoubleDraw", math.Rand(0.6, 1.2), intensity)
+        executed = true
+    elseif eventName == "ShortFreeze" then
+        local durations = AnomalyHorror.Config.MicroFreezeDurations
+        sendBreakageEvent(ply, "ShortFreeze", math.Rand(durations.p2_min, durations.p2_max), intensity)
+        tryHudCommentary(phase, phaseConfig.silenceChance)
+        executed = true
+    elseif eventName == "FakeLuaError" then
+        logFakeError()
+        sendBreakageEvent(ply, "FakeLuaError", math.Rand(0.3, 0.6), intensity)
+        tryHudCommentary(phase, phaseConfig.silenceChance)
+        executed = true
+    elseif eventName == "AudioActionDesync" then
+        sendBreakageEvent(ply, "AudioActionDesync", math.Rand(0.4, 0.9), intensity)
+        executed = true
+    elseif eventName == "NpcStall" then
+        npcStall(ply)
+        sendBreakageEvent(ply, "NpcStall", 1, intensity)
+        executed = true
+    elseif eventName == "PropHover" then
+        propHover(ply)
+        sendBreakageEvent(ply, "PropHover", math.Rand(0.6, 1.0), intensity)
+        executed = true
+    elseif eventName == "FakeCrash" then
+        local crash = AnomalyHorror.Config.FakeCrashDurations
+        sendBreakageEvent(ply, "FakeCrash", math.Rand(crash.p3_min, crash.p3_max), intensity)
+        tryHudCommentary(phase, phaseConfig.silenceChance)
+        executed = true
+    elseif eventName == "BlackoutPulse" then
+        sendBreakageEvent(ply, "BlackoutPulse", math.Rand(0.6, 1.2), intensity)
+        executed = true
+    elseif eventName == "CausalInversion" then
+        sendBreakageEvent(ply, "CausalInversion", math.Rand(1.0, 2.5), intensity)
+        executed = true
+    elseif eventName == "ControlNudge" then
+        sendBreakageEvent(ply, "ControlNudge", math.Rand(0.3, 0.5), intensity)
+        executed = true
+    elseif eventName == "DelayedReaction" then
+        sendBreakageEvent(ply, "DelayedReaction", math.Rand(3, 6), intensity)
+        executed = true
+    elseif eventName == "LogicFlip" then
+        sendBreakageEvent(ply, "LogicFlip", math.Rand(0.4, 0.8), intensity)
+        executed = true
+    elseif eventName == "PhantomObjectFlash" then
+        sendBreakageEvent(ply, "PhantomObjectFlash", 0.12, intensity)
+        executed = true
+    elseif eventName == "ShadowOffset" then
+        sendBreakageEvent(ply, "ShadowOffset", math.Rand(0.6, 1.2), intensity)
+        executed = true
+    elseif eventName == "ImpossibleSoundDirection" then
+        sendBreakageEvent(ply, "ImpossibleSoundDirection", math.Rand(0.4, 0.9), intensity)
+        executed = true
+    elseif eventName == "FalseCalmSpike" then
+        local calmDuration = math.Rand(20, 40)
+        breakage.SuppressUntil = CurTime() + calmDuration
+        if AnomalyHorror.Anomalies then
+            AnomalyHorror.Anomalies.SuppressUntil = breakage.SuppressUntil
+        end
+        timer.Simple(calmDuration, function()
+            if IsValid(ply) then
+                sendBreakageEvent(ply, "BlackoutPulse", 0.8, intensity)
+            end
+        end)
+        executed = true
+    elseif eventName == "OneTimeWorldReset" then
+        if breakage.WorldResetUsed then
+            return
+        end
+        breakage.WorldResetUsed = true
+        sendBreakageEvent(ply, "OneTimeWorldReset", math.Rand(2, 3), intensity)
+        executed = true
+    end
+
+    if executed then
+        breakage.LastEvent = eventName
+        setEventCooldown(eventName)
+    end
+end
+
+function breakage.TriggerPhase2Marker(ply)
+    if breakage.Phase2MarkerUsed then
+        return
+    end
+
+    if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
+    breakage.Phase2MarkerUsed = true
+
+    local target = ply
+    if not IsValid(target) then
+        target = safePick(player.GetHumans())
+    end
+
+    if IsValid(target) then
+        net.Start("anomaly_horror_phase2_marker")
+        net.WriteFloat(0.6)
+        net.Send(target)
+    end
+
+    if canSendMessage(2) then
+        AnomalyHorror.SendMessage("SOMETHING JUST SHIFTED.")
+    end
+
+    if IsValid(target) then
+        sendBreakageEvent(target, "SubtleSoundDesync", 0.35, AnomalyHorror.State.GetIntensityScalar())
+    end
+end
