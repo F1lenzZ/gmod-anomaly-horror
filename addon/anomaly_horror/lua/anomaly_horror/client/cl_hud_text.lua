@@ -48,8 +48,7 @@ net.Receive("anomaly_horror_message", function()
     addMessage(text)
 end)
 
-net.Receive("anomaly_horror_phase2_marker", function()
-    net.ReadFloat()
+hook.Add("AnomalyHorrorPhase2Marker", "AnomalyHorrorPhase2MarkerHudText", function()
     addMessage("PHASE SHIFT DETECTED.", 2.2)
 end)
 

@@ -86,6 +86,7 @@ net.Receive("anomaly_horror_phase2_marker", function()
     ply:ScreenFade(SCREENFADE.OUT, Color(0, 0, 0, 220), 0.12, 0.05)
     ply:ScreenFade(SCREENFADE.IN, Color(0, 0, 0, 0), 0.18, 0)
     ply:EmitSound("ambient/levels/citadel/weapon_disintegrate1.wav", 60, 95)
+    hook.Run("AnomalyHorrorPhase2Marker", duration)
 end)
 
 net.Receive("anomaly_horror_view_nudge", function()
