@@ -1,6 +1,4 @@
-if SERVER then
-    AddCSLuaFile()
-end
+AddCSLuaFile()
 
 AnomalyHorror = AnomalyHorror or {}
 

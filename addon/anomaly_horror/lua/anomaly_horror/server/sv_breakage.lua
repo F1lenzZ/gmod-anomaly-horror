@@ -315,7 +315,13 @@ function breakage.RunPulse(ply)
         executed = true
     elseif eventName == "ShortFreeze" then
         local durations = AnomalyHorror.Config.MicroFreezeDurations
-        sendBreakageEvent(ply, "ShortFreeze", math.Rand(durations.p2_min, durations.p2_max), intensity)
+        local min = durations.p2_min
+        local max = durations.p2_max
+        if phase >= 3 then
+            min = durations.p3_min
+            max = durations.p3_max
+        end
+        sendBreakageEvent(ply, "ShortFreeze", math.Rand(min, max), intensity)
         tryHudCommentary(phase, phaseConfig.silenceChance)
         executed = true
     elseif eventName == "FakeLuaError" then

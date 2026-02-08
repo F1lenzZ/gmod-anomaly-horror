@@ -52,7 +52,7 @@ function director.Start()
     director.NextEntityTime = CurTime() + math.Rand(20, 40)
     director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
-    director.SkyPaint = director.FindOrCreateSky()
+    director.SkyNeedsSetup = true
     director.LastPhase = AnomalyHorror.State.GetPhase()
     director.Phase2MarkerTriggered = director.LastPhase >= 2
     director.BeatCalmUntil = 0
@@ -376,6 +376,10 @@ hook.Add("Initialize", "AnomalyHorrorStart", function()
 end)
 
 hook.Add("InitPostEntity", "AnomalyHorrorEnsureDirector", function()
+    if director.SkyNeedsSetup then
+        director.SkyPaint = director.FindOrCreateSky()
+        director.SkyNeedsSetup = false
+    end
     director.EnsureRunning()
 end)
 
