@@ -1,4 +1,6 @@
-AddCSLuaFile()
+if SERVER then
+    AddCSLuaFile()
+end
 
 AnomalyHorror = AnomalyHorror or {}
 
@@ -24,7 +26,7 @@ if SERVER then
     include("anomaly_horror/server/sv_anomalies.lua")
     include("anomaly_horror/server/sv_breakage.lua")
     include("anomaly_horror/server/sv_entity.lua")
-else
-    includeClient("anomaly_horror/client/cl_effects.lua")
-    includeClient("anomaly_horror/client/cl_hud_text.lua")
 end
+
+includeClient("anomaly_horror/client/cl_effects.lua")
+includeClient("anomaly_horror/client/cl_hud_text.lua")

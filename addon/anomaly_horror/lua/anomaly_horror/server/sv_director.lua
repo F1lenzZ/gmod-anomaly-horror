@@ -363,6 +363,9 @@ end
 
 function director.EnsureRunning()
     if not timer.Exists("AnomalyHorrorDirector") then
+        if not director.NextAnomalyPulse or not director.NextBreakageTime or not director.NextEntityTime then
+            director.Start()
+        end
         timer.Create("AnomalyHorrorDirector", AnomalyHorror.Config.UpdateInterval, 0, director.Tick)
     end
 end
