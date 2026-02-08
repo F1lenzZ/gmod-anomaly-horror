@@ -56,11 +56,11 @@ function director.Start()
     director.LastPhase = AnomalyHorror.State.GetPhase()
     director.Phase2MarkerTriggered = director.LastPhase >= 2
     director.BeatCalmUntil = 0
-    local beatState = updateBeatState()
+    local beatState = director.UpdateBeatState()
     beatState.nextAllowedBeatTime = CurTime() + math.Rand(240, 420)
     beatState.nextAllowedByBeat.EmptyThreat = beatState.nextAllowedBeatTime
     beatState.nextAllowedByBeat.SeenButNotThere = CurTime() + math.Rand(300, 540)
-    updateHintState()
+    director.UpdateHintState()
     logDevInfo()
 end
 
@@ -198,7 +198,7 @@ local hintStillBias = {
     "stop moving."
 }
 
-local function updateHintState()
+function director.UpdateHintState()
     director.HintState = director.HintState or {
         nextHintTime = CurTime() + math.Rand(120, 240),
         lastHintText = ""
@@ -226,7 +226,7 @@ local function pickHintText(phase, context)
     return safePick(pool)
 end
 
-local function updateBeatState()
+function director.UpdateBeatState()
     director.BeatState = director.BeatState or {
         lastBeatTime = 0,
         nextAllowedBeatTime = CurTime(),
@@ -269,9 +269,9 @@ function director.Tick()
         return
     end
 
-    local beatState = updateBeatState()
+    local beatState = director.UpdateBeatState()
     local beatCalmActive = CurTime() < (director.BeatCalmUntil or 0)
-    local hintState = updateHintState()
+    local hintState = director.UpdateHintState()
     local speed = ply:GetVelocity():Length()
     director.ContinuousStill = director.ContinuousStill or 0
     director.ContinuousRun = director.ContinuousRun or 0
@@ -361,9 +361,19 @@ function director.Tick()
     end
 end
 
+function director.EnsureRunning()
+    if not timer.Exists("AnomalyHorrorDirector") then
+        timer.Create("AnomalyHorrorDirector", AnomalyHorror.Config.UpdateInterval, 0, director.Tick)
+    end
+end
+
 hook.Add("Initialize", "AnomalyHorrorStart", function()
     director.Start()
-    timer.Create("AnomalyHorrorDirector", AnomalyHorror.Config.UpdateInterval, 0, director.Tick)
+    director.EnsureRunning()
+end)
+
+hook.Add("InitPostEntity", "AnomalyHorrorEnsureDirector", function()
+    director.EnsureRunning()
 end)
 
 hook.Add("PlayerInitialSpawn", "AnomalyHorrorSendState", function(ply)
@@ -432,4 +442,24 @@ concommand.Add("ah_dev_force_entity", function(ply)
     if IsValid(target) then
         AnomalyHorror.Entity.TrySpawn(target)
     end
+end)
+
+concommand.Add("ah_dev_status", function(ply)
+    if IsValid(ply) or not devEnabled() then
+        return
+    end
+
+    ServerLog(string.format(
+        "[AnomalyHorror][DEV] directorTimer=%s sessionSeconds=%.2f phase=%d intensity=%.2f\n",
+        tostring(timer.Exists("AnomalyHorrorDirector")),
+        AnomalyHorror.State.GetSessionSeconds(),
+        AnomalyHorror.State.GetPhase(),
+        AnomalyHorror.State.GetIntensityScalar()
+    ))
+    ServerLog(string.format(
+        "[AnomalyHorror][DEV] nextAnomaly=%.2f nextBreakage=%.2f nextEntity=%.2f\n",
+        director.NextAnomalyPulse or 0,
+        director.NextBreakageTime or 0,
+        director.NextEntityTime or 0
+    ))
 end)
