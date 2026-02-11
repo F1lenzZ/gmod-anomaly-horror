@@ -241,6 +241,7 @@ local function propHover(ply)
         return
     end
 
+    local wasMotion = phys:IsMotionEnabled()
     phys:EnableMotion(false)
     timer.Simple(math.Rand(0.6, 1.0), function()
         if not IsValid(prop) then
@@ -249,7 +250,7 @@ local function propHover(ply)
 
         local propPhys = prop:GetPhysicsObject()
         if IsValid(propPhys) then
-            propPhys:EnableMotion(true)
+            propPhys:EnableMotion(wasMotion)
             propPhys:Wake()
         end
     end)
@@ -398,25 +399,27 @@ end
 
 function breakage.TriggerPhase2Marker(ply)
     if breakage.Phase2MarkerUsed then
-        return
+        return false
     end
 
     if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
-        return
+        return false
     end
-
-    breakage.Phase2MarkerUsed = true
 
     local target = ply
     if not IsValid(target) then
         target = safePick(player.GetHumans())
     end
 
-    if IsValid(target) then
-        net.Start("anomaly_horror_phase2_marker")
-        net.WriteFloat(0.6)
-        net.Send(target)
+    if not IsValid(target) then
+        return false
     end
+
+    breakage.Phase2MarkerUsed = true
+
+    net.Start("anomaly_horror_phase2_marker")
+    net.WriteFloat(0.6)
+    net.Send(target)
 
     if canSendMessage(2) then
         AnomalyHorror.SendMessage("SOMETHING JUST SHIFTED.")
@@ -425,4 +428,6 @@ function breakage.TriggerPhase2Marker(ply)
     if IsValid(target) then
         sendBreakageEvent(target, "SubtleSoundDesync", 0.35, AnomalyHorror.State.GetIntensityScalar())
     end
+
+    return true
 end

@@ -201,10 +201,15 @@ function director.TryDeliverPhase2Marker()
         return false
     end
 
-    director.Phase2MarkerTriggered = true
-    director.Phase2MarkerPending = false
-    AnomalyHorror.Breakage.TriggerPhase2Marker(markerTarget)
-    return true
+    local delivered = AnomalyHorror.Breakage.TriggerPhase2Marker(markerTarget)
+    if delivered then
+        director.Phase2MarkerTriggered = true
+        director.Phase2MarkerPending = false
+        return true
+    end
+
+    director.Phase2MarkerPending = true
+    return false
 end
 
 local hintPoolByPhase = {
