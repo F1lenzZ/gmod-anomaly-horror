@@ -75,7 +75,9 @@ function director.Start()
     director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
     director.SkyNeedsSetup = true
     director.LastPhase = AnomalyHorror.State.GetPhase()
-    director.Phase2MarkerTriggered = director.LastPhase >= 2
+    director.Phase2MarkerTriggered = false
+    director.Phase2MarkerPending = director.LastPhase >= 2
+    director.NextPhase2MarkerRetry = CurTime()
     director.BeatCalmUntil = 0
     local beatState = director.UpdateBeatState()
     beatState.nextAllowedBeatTime = CurTime() + math.Rand(240, 420)
@@ -184,6 +186,27 @@ local function getRandomPlayer()
     return safePick(players)
 end
 
+function director.TryDeliverPhase2Marker()
+    if director.Phase2MarkerTriggered then
+        return false
+    end
+
+    if AnomalyHorror.State.GetPhase() < 2 then
+        return false
+    end
+
+    local markerTarget = getRandomPlayer()
+    if not IsValid(markerTarget) then
+        director.Phase2MarkerPending = true
+        return false
+    end
+
+    director.Phase2MarkerTriggered = true
+    director.Phase2MarkerPending = false
+    AnomalyHorror.Breakage.TriggerPhase2Marker(markerTarget)
+    return true
+end
+
 local hintPoolByPhase = {
     [1] = {
         "…did you move?",
@@ -271,9 +294,7 @@ function director.Tick()
 
     if phase ~= director.LastPhase then
         if director.LastPhase == 1 and phase == 2 and not director.Phase2MarkerTriggered then
-            director.Phase2MarkerTriggered = true
-            local markerTarget = getRandomPlayer()
-            AnomalyHorror.Breakage.TriggerPhase2Marker(markerTarget)
+            director.TryDeliverPhase2Marker()
         end
 
         if phase == 2 then
@@ -283,6 +304,15 @@ function director.Tick()
             director.NextBreakageTime = CurTime() + AnomalyHorror.Breakage.GetNextInterval()
         end
         director.LastPhase = phase
+    end
+
+    if phase >= 2
+        and not director.Phase2MarkerTriggered
+        and CurTime() >= (director.NextPhase2MarkerRetry or 0) then
+        local delivered = director.TryDeliverPhase2Marker()
+        if not delivered then
+            director.NextPhase2MarkerRetry = CurTime() + 5
+        end
     end
 
     local ply = getRandomPlayer()
