@@ -241,6 +241,7 @@ local function propHover(ply)
         return
     end
 
+    local wasMotion = phys:IsMotionEnabled()
     phys:EnableMotion(false)
     timer.Simple(math.Rand(0.6, 1.0), function()
         if not IsValid(prop) then
@@ -249,7 +250,7 @@ local function propHover(ply)
 
         local propPhys = prop:GetPhysicsObject()
         if IsValid(propPhys) then
-            propPhys:EnableMotion(true)
+            propPhys:EnableMotion(wasMotion)
             propPhys:Wake()
         end
     end)
@@ -398,11 +399,11 @@ end
 
 function breakage.TriggerPhase2Marker(ply)
     if breakage.Phase2MarkerUsed then
-        return
+        return false
     end
 
     if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
-        return
+        return false
     end
 
     local target = ply
@@ -411,7 +412,7 @@ function breakage.TriggerPhase2Marker(ply)
     end
 
     if not IsValid(target) then
-        return
+        return false
     end
 
     breakage.Phase2MarkerUsed = true
@@ -427,4 +428,6 @@ function breakage.TriggerPhase2Marker(ply)
     if IsValid(target) then
         sendBreakageEvent(target, "SubtleSoundDesync", 0.35, AnomalyHorror.State.GetIntensityScalar())
     end
+
+    return true
 end
