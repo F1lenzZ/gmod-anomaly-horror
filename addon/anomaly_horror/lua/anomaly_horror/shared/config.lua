@@ -93,6 +93,7 @@ AnomalyHorror.Config = {
                 "DelayedReaction",
                 "LogicFlip",
                 "PhantomObjectFlash",
+                "PropHover",
                 "ShadowOffset",
                 "ImpossibleSoundDirection",
                 "FalseCalmSpike",
