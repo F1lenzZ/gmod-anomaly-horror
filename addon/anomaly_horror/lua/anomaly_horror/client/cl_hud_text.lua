@@ -6,13 +6,44 @@ hudText.Queue = hudText.Queue or {}
 hudText.HintText = nil
 hudText.HintEnd = 0
 hudText.HintStart = 0
+hudText.MaxQueue = hudText.MaxQueue or 5
+hudText.LastEnqueueText = hudText.LastEnqueueText or ""
+hudText.LastEnqueueTime = hudText.LastEnqueueTime or 0
+
+local function computeDuration(text, requested)
+    if requested and requested > 0 then
+        return requested
+    end
+
+    local length = text and #text or 0
+    return math.Clamp(1.8 + length * 0.03, 2.0, 4.2)
+end
 
 local function addMessage(text, duration)
+    if not text or text == "" then
+        return
+    end
+
+    local now = CurTime()
+    if text == hudText.LastEnqueueText and (now - hudText.LastEnqueueTime) < 0.4 then
+        return
+    end
+
+    local totalDuration = computeDuration(text, duration)
+
+    while #hudText.Queue > hudText.MaxQueue and #hudText.Queue > 1 do
+        table.remove(hudText.Queue, 2)
+    end
+
     table.insert(hudText.Queue, {
         text = text,
         start = nil,
-        duration = duration or 5
+        duration = totalDuration,
+        jitterSeed = nil
     })
+
+    hudText.LastEnqueueText = text
+    hudText.LastEnqueueTime = now
 end
 
 local function getFont()
@@ -61,9 +92,9 @@ net.Receive("anomaly_horror_hint", function()
 end)
 
 hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
-    if hudText.HintText and CurTime() < hudText.HintEnd then
-        local now = CurTime()
-        local total = math.max(0.1, hudText.HintEnd - hudText.HintStart)
+    local now = CurTime()
+
+    if hudText.HintText and now < hudText.HintEnd then
         local elapsed = now - hudText.HintStart
         local fadeIn = math.Clamp(elapsed / 0.2, 0, 1)
         local fadeOut = math.Clamp((hudText.HintEnd - now) / 0.3, 0, 1)
@@ -92,21 +123,39 @@ hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
 
     local message = hudText.Queue[1]
     if not message.start then
-        message.start = CurTime()
+        message.start = now
+        message.jitterSeed = tonumber(util.CRC(message.text or "")) or 1
     end
-    local elapsed = CurTime() - message.start
 
-    if elapsed > message.duration then
+    local elapsed = now - message.start
+    local totalTime = math.max(0.4, message.duration or 3)
+    local fadeInTime = math.min(0.2, totalTime * 0.2)
+    local fadeOutTime = math.min(0.35, totalTime * 0.35)
+    local holdTime = math.max(0, totalTime - fadeInTime - fadeOutTime)
+
+    if elapsed >= totalTime then
         table.remove(hudText.Queue, 1)
         return
     end
 
-    local fade = elapsed / message.duration
+    local alphaFactor = 1
+    if elapsed < fadeInTime then
+        alphaFactor = math.Clamp(elapsed / math.max(0.01, fadeInTime), 0, 1)
+    elseif elapsed > fadeInTime + holdTime then
+        local fadeElapsed = elapsed - fadeInTime - holdTime
+        alphaFactor = math.Clamp(1 - (fadeElapsed / math.max(0.01, fadeOutTime)), 0, 1)
+    end
+
     local boost = elapsed < 0.4 and 1.15 or 1
-    local alpha = math.Clamp(255 - fade * 170, 80, 255)
-    local jitterX = math.random(-1, 1)
-    local jitterY = math.random(-1, 1)
+    local alpha = math.Clamp(255 * alphaFactor, 0, 255)
+    local seed = message.jitterSeed or 1
+    local jitterX = math.sin(now * 4 + seed * 0.0001) * 1.1
+    local jitterY = math.cos(now * 3.6 + seed * 0.00013) * 1.1
     local font = getFont()
+
+    if alpha < 1 then
+        return
+    end
 
     surface.SetFont(font)
     local textWidth, textHeight = surface.GetTextSize(message.text)
@@ -117,11 +166,11 @@ hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
     local boxX = (ScrW() - boxWidth) * 0.5 + jitterX
     local boxY = ScrH() * 0.25 - boxHeight * 0.5 + jitterY
 
-    surface.SetDrawColor(0, 0, 0, 170)
+    surface.SetDrawColor(0, 0, 0, 170 * alphaFactor)
     surface.DrawRect(boxX, boxY, boxWidth, boxHeight)
 
     local doubleActive = AnomalyHorror.ClientState
-        and CurTime() < (AnomalyHorror.ClientState.HudDoubleEnd or 0)
+        and now < (AnomalyHorror.ClientState.HudDoubleEnd or 0)
     if doubleActive then
         draw.SimpleTextOutlined(
             message.text,
