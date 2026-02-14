@@ -181,8 +181,40 @@ function AnomalyHorror.SendMessage(text)
     net.Broadcast()
 end
 
+local function isActiveTarget(ply)
+    if not IsValid(ply) or not ply:IsPlayer() then
+        return false
+    end
+
+    if ply.Alive and not ply:Alive() then
+        return false
+    end
+
+    if ply.GetObserverMode and ply:GetObserverMode() ~= OBS_MODE_NONE then
+        return false
+    end
+
+    if TEAM_SPECTATOR and ply.Team and ply:Team() == TEAM_SPECTATOR then
+        return false
+    end
+
+    return true
+end
+
 local function getRandomPlayer()
     local players = player.GetHumans()
+    local active = {}
+
+    for _, ply in ipairs(players) do
+        if isActiveTarget(ply) then
+            table.insert(active, ply)
+        end
+    end
+
+    if #active > 0 then
+        return safePick(active)
+    end
+
     return safePick(players)
 end
 
