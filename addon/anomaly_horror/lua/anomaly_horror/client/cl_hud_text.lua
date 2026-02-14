@@ -10,7 +10,7 @@ hudText.HintStart = 0
 local function addMessage(text, duration)
     table.insert(hudText.Queue, {
         text = text,
-        start = CurTime(),
+        start = nil,
         duration = duration or 5
     })
 end
@@ -91,6 +91,9 @@ hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
     end
 
     local message = hudText.Queue[1]
+    if not message.start then
+        message.start = CurTime()
+    end
     local elapsed = CurTime() - message.start
 
     if elapsed > message.duration then
