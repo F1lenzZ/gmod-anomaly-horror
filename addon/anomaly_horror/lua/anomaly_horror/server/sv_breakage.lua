@@ -76,7 +76,7 @@ local function canSendMessage(phase)
     return true
 end
 
-local function logFakeError()
+local function logFakeError(ply)
     local errors = AnomalyHorror.Config.FakeLuaErrors
     local line = safePick(errors)
     if not line then
@@ -84,6 +84,10 @@ local function logFakeError()
     end
 
     ServerLog("[ERROR] " .. line .. "\n")
+
+    if IsValid(ply) and AnomalyHorror.SendConsoleLine then
+        AnomalyHorror.SendConsoleLine(ply, line, true)
+    end
 end
 
 local function tryHudCommentary(phase, silenceChance)
@@ -326,7 +330,7 @@ function breakage.RunPulse(ply)
         tryHudCommentary(phase, phaseConfig.silenceChance)
         executed = true
     elseif eventName == "FakeLuaError" then
-        logFakeError()
+        logFakeError(ply)
         sendBreakageEvent(ply, "FakeLuaError", math.Rand(0.3, 0.6), intensity)
         tryHudCommentary(phase, phaseConfig.silenceChance)
         executed = true

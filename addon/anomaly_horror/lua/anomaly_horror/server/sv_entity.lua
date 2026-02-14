@@ -103,7 +103,7 @@ local function configureEntity(ent)
     ent:SetColor(Color(0, 0, 0))
     ent:SetRenderMode(RENDERMODE_TRANSALPHA)
     ent:DrawShadow(false)
-    ent:SetCollisionGroup(COLLISION_GROUP_WORLD)
+    ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER)
     ent:SetMoveType(MOVETYPE_NONE)
 
     return true

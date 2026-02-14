@@ -33,7 +33,7 @@ local function sendAnomalyEvent(ply, eventName, duration, severity)
     net.Send(ply)
 end
 
-local function spawnPropNear(ply)
+local function cleanupSpawnedEntities()
     local aliveCount = 0
     for i = #anomalies.SpawnedEntities, 1, -1 do
         local ent = anomalies.SpawnedEntities[i]
@@ -44,8 +44,14 @@ local function spawnPropNear(ply)
         end
     end
 
+    return aliveCount
+end
+
+local function spawnPropNear(ply)
+    local aliveCount = cleanupSpawnedEntities()
+
     if aliveCount >= anomalies.SpawnedLimit then
-        return
+        return false
     end
 
     local config = AnomalyHorror.Config
@@ -58,17 +64,17 @@ local function spawnPropNear(ply)
     })
 
     if not trace.Hit then
-        return
+        return false
     end
 
     local model = safePick(config.PropModels)
     if not model then
-        return
+        return false
     end
 
     local prop = ents.Create("prop_physics")
     if not IsValid(prop) then
-        return
+        return false
     end
 
     prop:SetModel(model)
@@ -76,28 +82,29 @@ local function spawnPropNear(ply)
     prop:Spawn()
     prop:Activate()
     prop:SetCollisionGroup(COLLISION_GROUP_INTERACTIVE)
+    prop.__AHSpawned = true
     table.insert(anomalies.SpawnedEntities, prop)
+
+    timer.Simple(math.Rand(60, 120), function()
+        if IsValid(prop) and prop.__AHSpawned then
+            prop:Remove()
+        end
+    end)
+
+    return true
 end
 
 local function spawnNpcNear(ply)
-    local aliveCount = 0
-    for i = #anomalies.SpawnedEntities, 1, -1 do
-        local ent = anomalies.SpawnedEntities[i]
-        if not IsValid(ent) then
-            table.remove(anomalies.SpawnedEntities, i)
-        else
-            aliveCount = aliveCount + 1
-        end
-    end
+    local aliveCount = cleanupSpawnedEntities()
 
     if aliveCount >= anomalies.SpawnedLimit then
-        return
+        return false
     end
 
     local config = AnomalyHorror.Config
     local npcClass = safePick(config.NpcClasses)
     if not npcClass then
-        return
+        return false
     end
 
     local center = safeFindPlayerPosition(ply)
@@ -110,18 +117,27 @@ local function spawnNpcNear(ply)
     })
 
     if not trace.Hit then
-        return
+        return false
     end
 
     local npc = ents.Create(npcClass)
     if not IsValid(npc) then
-        return
+        return false
     end
 
     npc:SetPos(trace.HitPos + Vector(0, 0, 10))
     npc:Spawn()
     npc:SetSchedule(SCHED_IDLE_WANDER)
+    npc.__AHSpawned = true
     table.insert(anomalies.SpawnedEntities, npc)
+
+    timer.Simple(math.Rand(45, 90), function()
+        if IsValid(npc) and npc.__AHSpawned then
+            npc:Remove()
+        end
+    end)
+
+    return true
 end
 
 local function flickerLights()
@@ -167,14 +183,20 @@ local function physicsPulse(ply)
     end
 end
 
-local function consoleSpam()
+local function consoleSpam(ply)
     local config = AnomalyHorror.Config
     local line = safePick(config.ConsoleSpam)
     if not line then
-        return
+        return false
     end
 
     ServerLog(line .. "\n")
+
+    if IsValid(ply) and AnomalyHorror.SendConsoleLine then
+        AnomalyHorror.SendConsoleLine(ply, line, false)
+    end
+
+    return true
 end
 
 local function soundWarp(ply)
@@ -509,33 +531,51 @@ local anomalyPoolP1 = {
     function(ply)
         if math.random() < 0.05 then
             distantSingleStep(ply)
+            return true
         end
+
+        return false
     end,
     function(ply)
         if math.random() < 0.04 then
             subtlePropRotation(ply)
+            return true
         end
+
+        return false
     end,
     function(ply)
         if math.random() < 0.05 then
             npcMicroGlance(ply)
+            return true
         end
+
+        return false
     end,
     function(ply)
         if math.random() < 0.06 then
             hudMicroOffset(ply)
+            return true
         end
+
+        return false
     end,
     function(ply)
         local extras = AnomalyHorror.Config.Phase1ExtraEvents
         if extras and table.HasValue(extras, "SubtleViewBreath") and math.random() < 0.05 then
             subtleViewBreath(ply)
+            return true
         end
+
+        return false
     end,
     function(ply)
         if math.random() < 0.02 then
             soundWarp(ply)
+            return true
         end
+
+        return false
     end
 }
 
@@ -663,9 +703,9 @@ local anomalyPoolP3 = {
             propBurst(ply)
         end
     end,
-    function()
+    function(ply)
         if math.random() < 0.2 then
-            consoleSpam()
+            consoleSpam(ply)
         end
     end
 }
@@ -701,6 +741,28 @@ function anomalies.RunPulse(ply)
         pool = anomalyPoolP1
     elseif phase >= 3 then
         pool = anomalyPoolP3
+    end
+
+    if phase == 1 then
+        local maxAttempts = 4
+        local triggered = false
+        for _ = 1, maxAttempts do
+            local anomaly = safePick(pool)
+            if not anomaly then
+                break
+            end
+
+            if anomaly(ply) then
+                triggered = true
+                break
+            end
+        end
+
+        if not triggered then
+            return
+        end
+
+        return
     end
 
     for _ = 1, runs do

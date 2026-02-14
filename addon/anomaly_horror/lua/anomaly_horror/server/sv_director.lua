@@ -13,6 +13,7 @@ util.AddNetworkString("anomaly_horror_phase2_marker")
 util.AddNetworkString("anomaly_horror_view_nudge")
 util.AddNetworkString("anomaly_horror_beat")
 util.AddNetworkString("anomaly_horror_hint")
+util.AddNetworkString("anomaly_horror_console_line")
 
 local function safePick(pool)
     if not pool or #pool == 0 then
@@ -33,7 +34,7 @@ local function devAllowed(ply)
     if not IsValid(ply) then
         return true
     end
-    if game.SinglePlayer() and ply:IsListenServerHost() then
+    if game.SinglePlayer() and ply.IsListenServerHost and ply:IsListenServerHost() then
         return true
     end
     return ply:IsAdmin()
@@ -181,6 +182,18 @@ function AnomalyHorror.SendMessage(text)
     net.Broadcast()
 end
 
+function AnomalyHorror.SendConsoleLine(ply, text, isError)
+    if not IsValid(ply) then
+        return false
+    end
+
+    net.Start("anomaly_horror_console_line")
+    net.WriteBool(isError and true or false)
+    net.WriteString(text or "")
+    net.Send(ply)
+    return true
+end
+
 local function isActiveTarget(ply)
     if not IsValid(ply) or not ply:IsPlayer() then
         return false
@@ -190,8 +203,11 @@ local function isActiveTarget(ply)
         return false
     end
 
-    if ply.GetObserverMode and ply:GetObserverMode() ~= OBS_MODE_NONE then
-        return false
+    if ply.GetObserverMode then
+        local obsNone = OBS_MODE_NONE or 0
+        if ply:GetObserverMode() ~= obsNone then
+            return false
+        end
     end
 
     if TEAM_SPECTATOR and ply.Team and ply:Team() == TEAM_SPECTATOR then

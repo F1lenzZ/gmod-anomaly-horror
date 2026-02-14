@@ -31,16 +31,16 @@ local function addMessage(text, duration)
 
     local totalDuration = computeDuration(text, duration)
 
-    while #hudText.Queue > hudText.MaxQueue and #hudText.Queue > 1 do
-        table.remove(hudText.Queue, 2)
-    end
-
     table.insert(hudText.Queue, {
         text = text,
         start = nil,
         duration = totalDuration,
         jitterSeed = nil
     })
+
+    while #hudText.Queue > hudText.MaxQueue and #hudText.Queue > 1 do
+        table.remove(hudText.Queue, 2)
+    end
 
     hudText.LastEnqueueText = text
     hudText.LastEnqueueTime = now

@@ -33,6 +33,17 @@ net.Receive("anomaly_horror_state", function()
     AnomalyHorror.State.SetSessionStart(CurTime() - elapsed)
 end)
 
+net.Receive("anomaly_horror_console_line", function()
+    local isError = net.ReadBool()
+    local text = net.ReadString()
+    if isError then
+        MsgC(Color(255, 80, 80), "[ERROR] ", Color(220, 220, 220), text, "\n")
+    else
+        MsgC(Color(180, 180, 180), text, "\n")
+    end
+end)
+
+
 local function startWeaponScramble(duration, interval)
     if duration <= 0 or interval <= 0 then
         return
