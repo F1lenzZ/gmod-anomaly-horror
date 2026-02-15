@@ -231,7 +231,7 @@ local function getRandomPlayer()
         return safePick(active)
     end
 
-    return safePick(players)
+    return nil
 end
 
 function director.TryDeliverPhase2Marker()
