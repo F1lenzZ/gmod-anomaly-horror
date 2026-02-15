@@ -183,7 +183,7 @@ function AnomalyHorror.SendMessage(text)
 end
 
 function AnomalyHorror.SendConsoleLine(ply, text, isError)
-    if not IsValid(ply) then
+    if not IsValid(ply) or not ply:IsPlayer() then
         return false
     end
 
@@ -231,7 +231,7 @@ local function getRandomPlayer()
         return safePick(active)
     end
 
-    return safePick(players)
+    return nil
 end
 
 function director.TryDeliverPhase2Marker()
