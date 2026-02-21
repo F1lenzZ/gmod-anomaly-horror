@@ -18,6 +18,8 @@ clientState.ShadowOffsetEnd = 0
 clientState.ShadowOffset = Vector(0, 0, 0)
 clientState.Phase2MarkerEnd = 0
 
+local fxCvar = CreateClientConVar("ah_fx", "1", true, false, "Enable Anomaly Horror post effects.")
+
 local function safePick(pool)
     if not pool or #pool == 0 then
         return nil
@@ -419,6 +421,10 @@ hook.Add("HUDPaint", "AnomalyHorrorHudShift", function()
 end)
 
 hook.Add("RenderScreenspaceEffects", "AnomalyHorrorScreenEffects", function()
+    if fxCvar and not fxCvar:GetBool() then
+        return
+    end
+
     if not AnomalyHorror.State or not AnomalyHorror.Config then
         return
     end

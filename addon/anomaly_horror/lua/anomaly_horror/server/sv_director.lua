@@ -176,9 +176,27 @@ function director.BroadcastState()
     net.Broadcast()
 end
 
-function AnomalyHorror.SendMessage(text)
+function AnomalyHorror.SendMessage(text, target)
+    local resolvedTarget = nil
+
+    if IsValid(text) and text:IsPlayer() then
+        resolvedTarget = text
+        text = target
+    elseif IsValid(target) and target:IsPlayer() then
+        resolvedTarget = target
+    end
+
+    if not isstring(text) then
+        text = tostring(text or "")
+    end
+
     net.Start("anomaly_horror_message")
     net.WriteString(text)
+    if IsValid(resolvedTarget) then
+        net.Send(resolvedTarget)
+        return
+    end
+
     net.Broadcast()
 end
 
@@ -231,7 +249,7 @@ local function getRandomPlayer()
         return safePick(active)
     end
 
-    return nil
+    return safePick(players)
 end
 
 function director.TryDeliverPhase2Marker()
@@ -341,6 +359,16 @@ function director.Tick()
     local elapsed = AnomalyHorror.State.GetSessionSeconds()
     local phase = AnomalyHorror.State.GetPhase()
     local intensity = AnomalyHorror.State.GetIntensityScalar()
+
+    if not director.NextAnomalyPulse then
+        director.NextAnomalyPulse = CurTime() + AnomalyHorror.Config.QuietStartSeconds
+    end
+    if not director.NextBreakageTime then
+        director.NextBreakageTime = CurTime() + AnomalyHorror.Config.QuietStartSeconds
+    end
+    if not director.NextEntityTime then
+        director.NextEntityTime = CurTime() + AnomalyHorror.Entity.GetCooldown()
+    end
 
     director.BroadcastState()
     director.UpdateSky()

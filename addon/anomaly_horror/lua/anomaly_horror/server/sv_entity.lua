@@ -293,7 +293,7 @@ function entityController.TrySpawn(ply)
         and AnomalyHorror.State.GetSessionSeconds() >= AnomalyHorror.Config.QuietStartSeconds then
         local message = pickMessage()
         if message then
-            AnomalyHorror.SendMessage(message)
+            AnomalyHorror.SendMessage(message, ply)
         end
     end
 

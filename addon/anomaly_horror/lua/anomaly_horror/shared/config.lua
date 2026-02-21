@@ -97,7 +97,6 @@ AnomalyHorror.Config = {
                 "ShadowOffset",
                 "ImpossibleSoundDirection",
                 "FalseCalmSpike",
-                "FalseCalmSpike",
                 "OneTimeWorldReset"
             },
             frequencyMultiplier = 0.6,
