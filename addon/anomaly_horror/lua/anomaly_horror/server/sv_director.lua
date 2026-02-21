@@ -507,9 +507,15 @@ hook.Add("Initialize", "AnomalyHorrorStart", function()
 end)
 
 hook.Add("InitPostEntity", "AnomalyHorrorEnsureDirector", function()
+    if not director.SkyNeedsSetup then
+        director.SkyNeedsSetup = true
+    end
+
     if director.SkyNeedsSetup then
         director.SkyPaint = director.FindOrCreateSky()
-        director.SkyNeedsSetup = false
+        if IsValid(director.SkyPaint) then
+            director.SkyNeedsSetup = false
+        end
     end
     director.EnsureRunning()
 end)
