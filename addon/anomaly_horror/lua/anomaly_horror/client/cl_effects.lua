@@ -68,12 +68,14 @@ local function startWeaponScramble(duration, interval)
 
         local ply = LocalPlayer()
         if not IsValid(ply) then
+            timer.Remove("AnomalyHorrorWeaponScramble")
             clientState.LastScrambleWeapon = nil
             return
         end
 
         local weapons = ply:GetWeapons()
         if #weapons == 0 then
+            timer.Remove("AnomalyHorrorWeaponScramble")
             clientState.LastScrambleWeapon = nil
             return
         end

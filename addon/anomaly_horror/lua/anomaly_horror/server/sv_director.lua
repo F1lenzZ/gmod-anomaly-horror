@@ -179,7 +179,7 @@ end
 function AnomalyHorror.SendMessage(text, target)
     local resolvedTarget = nil
 
-    if IsValid(text) and text:IsPlayer() then
+    if IsValid(text) and text:IsPlayer() and isstring(target) then
         resolvedTarget = text
         text = target
     elseif IsValid(target) and target:IsPlayer() then
@@ -526,13 +526,19 @@ hook.Add("PostCleanupMap", "AnomalyHorrorDirectorReset", function()
     director.SkyPaint = nil
 
     timer.Simple(0, function()
+        if not director then
+            return
+        end
+
         if director.SkyNeedsSetup then
             director.SkyPaint = director.FindOrCreateSky()
             if IsValid(director.SkyPaint) then
                 director.SkyNeedsSetup = false
             end
         end
-        director.EnsureRunning()
+        if AnomalyHorror and AnomalyHorror.Config then
+            director.EnsureRunning()
+        end
     end)
 end)
 
