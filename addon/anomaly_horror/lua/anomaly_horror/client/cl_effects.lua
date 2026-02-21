@@ -384,12 +384,20 @@ local function randomGlitchOffset(intensity)
     return Vector(math.Rand(-magnitude, magnitude), math.Rand(-magnitude, magnitude), 0)
 end
 
-hook.Add("HUDShouldDraw", "AnomalyHorrorHudGlitch", function()
+hook.Add("HUDShouldDraw", "AnomalyHorrorHudGlitch", function(name)
     if not AnomalyHorror.State or not AnomalyHorror.Config then
         return
     end
 
     if AnomalyHorror.State.GetSessionSeconds() < AnomalyHorror.Config.QuietStartSeconds then
+        return
+    end
+
+    if name ~= "CHudCrosshair"
+        and name ~= "CHudAmmo"
+        and name ~= "CHudSecondaryAmmo"
+        and name ~= "CHudHealth"
+        and name ~= "CHudBattery" then
         return
     end
 

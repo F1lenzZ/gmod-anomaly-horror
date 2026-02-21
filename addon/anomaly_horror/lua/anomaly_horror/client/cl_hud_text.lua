@@ -107,11 +107,11 @@ hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
             font,
             x,
             y,
-            Color(200, 200, 200, 180 * alpha),
+            Color(200, 200, 200, math.floor(math.Clamp(180 * alpha, 0, 255))),
             TEXT_ALIGN_CENTER,
             TEXT_ALIGN_CENTER,
             1,
-            Color(0, 0, 0, 160 * alpha)
+            Color(0, 0, 0, math.floor(math.Clamp(160 * alpha, 0, 255)))
         )
     elseif hudText.HintText then
         hudText.HintText = nil
@@ -166,7 +166,7 @@ hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
     local boxX = (ScrW() - boxWidth) * 0.5 + jitterX
     local boxY = ScrH() * 0.25 - boxHeight * 0.5 + jitterY
 
-    surface.SetDrawColor(0, 0, 0, 170 * alphaFactor)
+    surface.SetDrawColor(0, 0, 0, math.floor(math.Clamp(170 * alphaFactor, 0, 255)))
     surface.DrawRect(boxX, boxY, boxWidth, boxHeight)
 
     local doubleActive = AnomalyHorror.ClientState
@@ -177,11 +177,11 @@ hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
             font,
             ScrW() * 0.5 + jitterX + 2,
             ScrH() * 0.25 + jitterY + 2,
-            Color(180, 60, 60, alpha),
+            Color(180, 60, 60, math.floor(math.Clamp(alpha, 0, 255))),
             TEXT_ALIGN_CENTER,
             TEXT_ALIGN_CENTER,
             4,
-            Color(0, 0, 0, alpha)
+            Color(0, 0, 0, math.floor(math.Clamp(alpha, 0, 255)))
         )
     end
 
@@ -190,10 +190,10 @@ hook.Add("HUDPaint", "AnomalyHorrorMessagePaint", function()
         font,
         ScrW() * 0.5 + jitterX,
         ScrH() * 0.25 + jitterY,
-        Color(220 * boost, 60 * boost, 60 * boost, alpha),
+        Color(math.floor(math.Clamp(220 * boost, 0, 255)), math.floor(math.Clamp(60 * boost, 0, 255)), math.floor(math.Clamp(60 * boost, 0, 255)), math.floor(math.Clamp(alpha, 0, 255))),
         TEXT_ALIGN_CENTER,
         TEXT_ALIGN_CENTER,
         4,
-        Color(0, 0, 0, alpha)
+        Color(0, 0, 0, math.floor(math.Clamp(alpha, 0, 255)))
     )
 end)

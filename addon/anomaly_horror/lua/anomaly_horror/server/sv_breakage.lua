@@ -43,6 +43,29 @@ local function safePick(pool)
     return pool[math.random(#pool)]
 end
 
+local function isActivePlayerTarget(ply)
+    if not IsValid(ply) or not ply:IsPlayer() then
+        return false
+    end
+
+    if ply.Alive and not ply:Alive() then
+        return false
+    end
+
+    if ply.GetObserverMode then
+        local obsNone = OBS_MODE_NONE or 0
+        if ply:GetObserverMode() ~= obsNone then
+            return false
+        end
+    end
+
+    if TEAM_SPECTATOR and ply.Team and ply:Team() == TEAM_SPECTATOR then
+        return false
+    end
+
+    return true
+end
+
 local function getPhaseConfig(phase)
     local config = AnomalyHorror.Config
     return config.BreakageByPhase[phase] or config.BreakageByPhase[1]
@@ -415,11 +438,17 @@ function breakage.TriggerPhase2Marker(ply)
     end
 
     local target = ply
-    if not IsValid(target) then
-        target = safePick(player.GetHumans())
+    if not isActivePlayerTarget(target) then
+        target = nil
+        for _, candidate in ipairs(player.GetHumans()) do
+            if isActivePlayerTarget(candidate) then
+                target = candidate
+                break
+            end
+        end
     end
 
-    if not IsValid(target) then
+    if not isActivePlayerTarget(target) then
         return false
     end
 
@@ -439,3 +468,17 @@ function breakage.TriggerPhase2Marker(ply)
 
     return true
 end
+
+function breakage.ResetSession()
+    breakage.Phase2MarkerUsed = false
+    breakage.WorldResetUsed = false
+    breakage.LastEvent = nil
+    breakage.SuppressUntil = 0
+    breakage.NextAllowedByEvent = {}
+end
+
+hook.Add("PostCleanupMap", "AnomalyHorrorBreakageReset", function()
+    breakage.ResetSession()
+end)
+
+breakage.ResetSession()

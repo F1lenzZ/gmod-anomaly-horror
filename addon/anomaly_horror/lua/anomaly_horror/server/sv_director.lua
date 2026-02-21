@@ -249,7 +249,7 @@ local function getRandomPlayer()
         return safePick(active)
     end
 
-    return safePick(players)
+    return nil
 end
 
 function director.TryDeliverPhase2Marker()
@@ -556,6 +556,11 @@ hook.Add("ShutDown", "AnomalyHorrorDirectorShutdown", function()
 end)
 
 hook.Add("PlayerInitialSpawn", "AnomalyHorrorSendState", function(ply)
+    if director.SessionResetOnEmpty then
+        director.Start()
+        director.SessionResetOnEmpty = false
+    end
+
     timer.Simple(1, function()
         if not IsValid(ply) then
             return
@@ -566,6 +571,20 @@ hook.Add("PlayerInitialSpawn", "AnomalyHorrorSendState", function(ply)
         net.WriteFloat(AnomalyHorror.State.GetIntensityScalar())
         net.WriteUInt(AnomalyHorror.State.GetPhase(), 2)
         net.Send(ply)
+    end)
+end)
+
+hook.Add("PlayerDisconnected", "AnomalyHorrorResetOnEmpty", function()
+    timer.Simple(0, function()
+        if #player.GetHumans() > 0 then
+            return
+        end
+
+        director.SessionResetOnEmpty = true
+        director.Start()
+        if AnomalyHorror.Breakage and AnomalyHorror.Breakage.ResetSession then
+            AnomalyHorror.Breakage.ResetSession()
+        end
     end)
 end)
 
