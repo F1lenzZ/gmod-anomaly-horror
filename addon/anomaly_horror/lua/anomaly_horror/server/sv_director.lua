@@ -522,6 +522,9 @@ hook.Add("PostCleanupMap", "AnomalyHorrorDirectorReset", function()
     timer.Simple(0, function()
         if director.SkyNeedsSetup then
             director.SkyPaint = director.FindOrCreateSky()
+            if IsValid(director.SkyPaint) then
+                director.SkyNeedsSetup = false
+            end
         end
         director.EnsureRunning()
     end)
@@ -530,7 +533,9 @@ end)
 hook.Add("OnReloaded", "AnomalyHorrorDirectorReloaded", function()
     director.SkyNeedsSetup = true
     director.SkyPaint = director.FindOrCreateSky()
-    director.SkyNeedsSetup = false
+    if IsValid(director.SkyPaint) then
+        director.SkyNeedsSetup = false
+    end
     director.EnsureRunning()
 end)
 
