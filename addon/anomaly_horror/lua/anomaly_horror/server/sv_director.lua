@@ -494,12 +494,11 @@ function director.Tick()
 end
 
 function director.EnsureRunning()
-    if not timer.Exists("AnomalyHorrorDirector") then
-        if not director.NextAnomalyPulse or not director.NextBreakageTime or not director.NextEntityTime then
-            director.Start()
-        end
-        timer.Create("AnomalyHorrorDirector", AnomalyHorror.Config.UpdateInterval, 0, director.Tick)
+    if not director.NextAnomalyPulse or not director.NextBreakageTime or not director.NextEntityTime then
+        director.Start()
     end
+
+    timer.Create("AnomalyHorrorDirector", AnomalyHorror.Config.UpdateInterval, 0, director.Tick)
 end
 
 hook.Add("Initialize", "AnomalyHorrorStart", function()
@@ -513,6 +512,25 @@ hook.Add("InitPostEntity", "AnomalyHorrorEnsureDirector", function()
         director.SkyNeedsSetup = false
     end
     director.EnsureRunning()
+end)
+
+hook.Add("PostCleanupMap", "AnomalyHorrorDirectorReset", function()
+    timer.Remove("AnomalyHorrorDirector")
+    director.SkyNeedsSetup = true
+    director.SkyPaint = director.FindOrCreateSky()
+    director.SkyNeedsSetup = false
+    director.EnsureRunning()
+end)
+
+hook.Add("OnReloaded", "AnomalyHorrorDirectorReloaded", function()
+    director.SkyNeedsSetup = true
+    director.SkyPaint = director.FindOrCreateSky()
+    director.SkyNeedsSetup = false
+    director.EnsureRunning()
+end)
+
+hook.Add("ShutDown", "AnomalyHorrorDirectorShutdown", function()
+    timer.Remove("AnomalyHorrorDirector")
 end)
 
 hook.Add("PlayerInitialSpawn", "AnomalyHorrorSendState", function(ply)

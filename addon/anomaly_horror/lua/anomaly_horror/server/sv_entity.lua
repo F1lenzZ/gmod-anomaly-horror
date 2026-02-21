@@ -436,3 +436,14 @@ function entityController.Think()
         end
     end
 end
+
+
+hook.Add("PostCleanupMap", "AnomalyHorrorEntityCleanup", function()
+    timer.Remove("AnomalyHorrorEntityThink")
+    entityController.Cleanup()
+end)
+
+hook.Add("ShutDown", "AnomalyHorrorEntityShutdown", function()
+    timer.Remove("AnomalyHorrorEntityThink")
+    entityController.Cleanup()
+end)

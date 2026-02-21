@@ -90,7 +90,7 @@ local function logFakeError(ply)
     end
 end
 
-local function tryHudCommentary(ply, phase, silenceChance)
+local function tryHudCommentary(phase, silenceChance)
     if not canSendMessage(phase) then
         return
     end
@@ -327,12 +327,12 @@ function breakage.RunPulse(ply)
             max = durations.p3_max
         end
         sendBreakageEvent(ply, "ShortFreeze", math.Rand(min, max), intensity)
-        tryHudCommentary(ply, phase, phaseConfig.silenceChance)
+        tryHudCommentary(phase, phaseConfig.silenceChance)
         executed = true
     elseif eventName == "FakeLuaError" then
         logFakeError(ply)
         sendBreakageEvent(ply, "FakeLuaError", math.Rand(0.3, 0.6), intensity)
-        tryHudCommentary(ply, phase, phaseConfig.silenceChance)
+        tryHudCommentary(phase, phaseConfig.silenceChance)
         executed = true
     elseif eventName == "AudioActionDesync" then
         sendBreakageEvent(ply, "AudioActionDesync", math.Rand(0.4, 0.9), intensity)
@@ -348,7 +348,7 @@ function breakage.RunPulse(ply)
     elseif eventName == "FakeCrash" then
         local crash = AnomalyHorror.Config.FakeCrashDurations
         sendBreakageEvent(ply, "FakeCrash", math.Rand(crash.p3_min, crash.p3_max), intensity)
-        tryHudCommentary(ply, phase, phaseConfig.silenceChance)
+        tryHudCommentary(phase, phaseConfig.silenceChance)
         executed = true
     elseif eventName == "BlackoutPulse" then
         sendBreakageEvent(ply, "BlackoutPulse", math.Rand(0.6, 1.2), intensity)

@@ -17,6 +17,7 @@ clientState.WorldResetEnd = 0
 clientState.ShadowOffsetEnd = 0
 clientState.ShadowOffset = Vector(0, 0, 0)
 clientState.Phase2MarkerEnd = 0
+clientState.LastScrambleWeapon = nil
 
 local fxCvar = CreateClientConVar("ah_fx", "1", true, false, "Enable Anomaly Horror post effects.")
 
@@ -51,6 +52,10 @@ local function startWeaponScramble(duration, interval)
         return
     end
 
+    if game and game.SinglePlayer and not game.SinglePlayer() then
+        interval = math.max(interval, 0.18)
+    end
+
     clientState.WeaponScrambleEnd = CurTime() + duration
 
     timer.Remove("AnomalyHorrorWeaponScramble")
@@ -75,8 +80,20 @@ local function startWeaponScramble(duration, interval)
             return
         end
 
+        local class = weapon:GetClass()
+        if class == clientState.LastScrambleWeapon and #weapons > 1 then
+            for _, candidate in ipairs(weapons) do
+                if IsValid(candidate) and candidate:GetClass() ~= class then
+                    weapon = candidate
+                    class = candidate:GetClass()
+                    break
+                end
+            end
+        end
+
         if IsValid(weapon) then
             input.SelectWeapon(weapon)
+            clientState.LastScrambleWeapon = class
         end
     end)
 end

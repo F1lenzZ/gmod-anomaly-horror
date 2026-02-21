@@ -127,7 +127,9 @@ local function spawnNpcNear(ply)
 
     npc:SetPos(trace.HitPos + Vector(0, 0, 10))
     npc:Spawn()
-    npc:SetSchedule(SCHED_IDLE_WANDER)
+    if npc.SetSchedule then
+        npc:SetSchedule(SCHED_IDLE_WANDER)
+    end
     npc.__AHSpawned = true
     table.insert(anomalies.SpawnedEntities, npc)
 
@@ -401,10 +403,14 @@ local function npcSoftFreeze(ply)
         return
     end
 
-    target:SetSchedule(SCHED_IDLE_STAND)
+    if target.SetSchedule then
+        target:SetSchedule(SCHED_IDLE_STAND)
+    end
     timer.Simple(math.Rand(1, 2), function()
         if IsValid(target) then
+            if target.SetSchedule then
             target:SetSchedule(SCHED_IDLE_WANDER)
+        end
         end
     end)
 end
