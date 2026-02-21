@@ -557,6 +557,7 @@ end)
 
 hook.Add("PlayerInitialSpawn", "AnomalyHorrorSendState", function(ply)
     if director.SessionResetOnEmpty then
+        director.BeatState = nil
         director.Start()
         director.SessionResetOnEmpty = false
     end
@@ -581,7 +582,6 @@ hook.Add("PlayerDisconnected", "AnomalyHorrorResetOnEmpty", function()
         end
 
         director.SessionResetOnEmpty = true
-        director.Start()
         if AnomalyHorror.Breakage and AnomalyHorror.Breakage.ResetSession then
             AnomalyHorror.Breakage.ResetSession()
         end

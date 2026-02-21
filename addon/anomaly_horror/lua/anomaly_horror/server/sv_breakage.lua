@@ -470,11 +470,11 @@ function breakage.TriggerPhase2Marker(ply)
 end
 
 function breakage.ResetSession()
-    breakage.Phase2MarkerUsed = false
-    breakage.WorldResetUsed = false
+    breakage.Phase2MarkerUsed = nil
+    breakage.WorldResetUsed = nil
     breakage.LastEvent = nil
-    breakage.SuppressUntil = 0
-    breakage.NextAllowedByEvent = {}
+    breakage.SuppressUntil = nil
+    breakage.NextAllowedByEvent = nil
 end
 
 hook.Add("PostCleanupMap", "AnomalyHorrorBreakageReset", function()
