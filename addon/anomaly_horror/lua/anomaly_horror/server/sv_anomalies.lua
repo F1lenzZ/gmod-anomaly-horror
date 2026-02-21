@@ -409,8 +409,8 @@ local function npcSoftFreeze(ply)
     timer.Simple(math.Rand(1, 2), function()
         if IsValid(target) then
             if target.SetSchedule then
-            target:SetSchedule(SCHED_IDLE_WANDER)
-        end
+                target:SetSchedule(SCHED_IDLE_WANDER)
+            end
         end
     end)
 end
