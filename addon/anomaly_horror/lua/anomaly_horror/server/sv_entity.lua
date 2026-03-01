@@ -212,6 +212,11 @@ local function pickBehavior()
     return behaviors.RUN_AWAY
 end
 
+function entityController.ResetSessionState()
+    entityController.StalkUsedByPhase = {}
+    entityController.StalkNextAllowed = nil
+end
+
 function entityController.GetCooldown()
     local config = AnomalyHorror.Config
     local intensity = AnomalyHorror.State.GetIntensityScalar()
@@ -220,6 +225,8 @@ function entityController.GetCooldown()
 
     return math.max(min, max - (max - min) * intensity + math.Rand(-10, 10))
 end
+
+entityController.ResetSessionState()
 
 function entityController.Cleanup()
     if IsValid(entityController.Current) then
@@ -441,9 +448,11 @@ end
 hook.Add("PostCleanupMap", "AnomalyHorrorEntityCleanup", function()
     timer.Remove("AnomalyHorrorEntityThink")
     entityController.Cleanup()
+    entityController.ResetSessionState()
 end)
 
 hook.Add("ShutDown", "AnomalyHorrorEntityShutdown", function()
     timer.Remove("AnomalyHorrorEntityThink")
     entityController.Cleanup()
+    entityController.ResetSessionState()
 end)
