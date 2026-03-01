@@ -537,6 +537,7 @@ hook.Add("PostCleanupMap", "AnomalyHorrorDirectorReset", function()
             end
         end
         if AnomalyHorror and AnomalyHorror.Config then
+            director.Start()
             director.EnsureRunning()
         end
     end)
