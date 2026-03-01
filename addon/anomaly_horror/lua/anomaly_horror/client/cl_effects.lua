@@ -82,6 +82,7 @@ local function startWeaponScramble(duration, interval)
 
         local weapon = safePick(weapons)
         if not IsValid(weapon) then
+            timer.Remove("AnomalyHorrorWeaponScramble")
             clientState.LastScrambleWeapon = nil
             return
         end

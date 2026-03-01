@@ -537,6 +537,7 @@ hook.Add("PostCleanupMap", "AnomalyHorrorDirectorReset", function()
             end
         end
         if AnomalyHorror and AnomalyHorror.Config then
+            director.Start()
             director.EnsureRunning()
         end
     end)
@@ -547,6 +548,9 @@ hook.Add("OnReloaded", "AnomalyHorrorDirectorReloaded", function()
     director.SkyPaint = director.FindOrCreateSky()
     if IsValid(director.SkyPaint) then
         director.SkyNeedsSetup = false
+    end
+    if AnomalyHorror.Entity and AnomalyHorror.Entity.ResetSessionState then
+        AnomalyHorror.Entity.ResetSessionState()
     end
     director.EnsureRunning()
 end)
@@ -559,6 +563,9 @@ hook.Add("PlayerInitialSpawn", "AnomalyHorrorSendState", function(ply)
     if director.SessionResetOnEmpty then
         director.BeatState = nil
         director.Start()
+        if AnomalyHorror.Entity and AnomalyHorror.Entity.ResetSessionState then
+            AnomalyHorror.Entity.ResetSessionState()
+        end
         director.SessionResetOnEmpty = false
     end
 
